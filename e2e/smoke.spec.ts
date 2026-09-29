@@ -34,7 +34,7 @@ test("main flow: profile → daily change → global update → comparison → s
   // Create a global update with a new Rate.
   await page.getByRole("link", { name: "Глобальне оновлення" }).click();
   await page.getByRole("link", { name: "Нове оновлення" }).click();
-  const rate = page.getByLabel("03 / Rate");
+  const rate = page.getByLabel("Rate", { exact: true });
   await rate.fill("60");
   await page.getByRole("button", { name: "Зберегти" }).click();
   await expect(page).toHaveURL(/version=/);
