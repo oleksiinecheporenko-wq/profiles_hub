@@ -15,7 +15,7 @@
 ## Фази
 
 - [x] 1. Scaffold, токени, оболонка застосунку з сайдбаром і чотирма маршрутами, базові спільні компоненти, парольний шлюз.
-- [ ] 2. Міграції (enums, таблиці, view, тригери, функції, buckets), seed, інтерфейс `Repository` з обома реалізаціями.
+- [x] 2. Міграції (enums, таблиці, view, тригери, функції, buckets), seed, інтерфейс `Repository` з обома реалізаціями.
 - [ ] 3. `Профілі`: список і `Додати профіль`.
 - [ ] 4. Сторінка профілю: шапка, зміна статусу, `Основна інформація` з inline-редагуванням і мовами.
 - [ ] 5. `Оновлення → Глобальне оновлення`: rail версій, актуальна й архівна версії, форма створення/редагування, колекції з reorder.
@@ -33,3 +33,17 @@
 - Базові типи й підписи enum-ів: `src/lib/domain/enums.ts`; форматування: `src/lib/format.ts`.
 - `robots.txt` (disallow all) і `noindex,nofollow` meta.
 - Компоненти, що залежать від даних (`InlineEditableField`, `TagInput`, `SearchableSelect`, `SortableCardList`, `ChangeRecord`, `VersionSelector`, `ComparisonRow`), будуються у фазах, де вони вперше використовуються.
+
+## Фаза 2 — що зроблено
+
+- Міграції (`supabase/migrations/`):
+  - `20260929100000_schema.sql` — enums, таблиці, індекси, тригери `updated_at`, RLS без політик, `revoke` для anon/authenticated.
+  - `20260929100100_activity_log_triggers.sql` — `log_activity()` і тригери на 5 таблицях; `app.action` / `app.reason` з RPC, generic action для прямих правок, `app.skip_log` лише для seed.
+  - `20260929100200_views.sql` — `profile_overview` і `activity_feed` (один рядок на транзакцію), обидва `security_invoker`.
+  - `20260929100300_functions.sql` — усі функції з розділу 6; помилки через власні SQLSTATE (`UP404/409/410/422/423`); execute лише для service_role.
+  - `20260929100400_storage.sql` — приватні buckets `profile-photos`, `portfolio-images` (jpg/png/webp, 5 MB).
+- `src/lib/data/`: `Repository` (`repository.ts`), `SupabaseRepository` (`supabase.ts`, `server-only`), `MockRepository` (`mock.ts`, емулює транзакції з відкатом і тригери журналу), `getRepository()` (`index.ts`).
+- Тестові дані: `sample.ts` створює набір, проганяючи реальні операції через `MockRepository` з детермінованим годинником та id; `supabase/seed.sql` генерується з нього (`npm run db:seed:generate`), тест падає, якщо файл застарів.
+- Доменна логіка: `domain/dailyChanges.ts`, `domain/versions.ts`; zod-схеми в `validation/`; довідники мов і часових поясів.
+- Перевірка SQL: `migrations.test.ts` запускає всі міграції й seed на PGlite (Postgres у WASM) і тестує функції та тригери, зокрема паритет правил щоденних змін між SQL і TypeScript.
+- Відхилення: `update_contract` приймає необов’язковий `p_expected_updated_at` (захист від одночасного редагування); `set_profile_languages` робить upsert замість delete+insert, щоб журнал показував лише реальні зміни.
