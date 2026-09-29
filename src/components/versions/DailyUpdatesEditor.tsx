@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { applyDailyChangeAction } from "@/app/(app)/profiles/[id]/versionActions";
+import { FieldLabel, type FieldIconKey } from "@/components/ui/FieldLabel";
 import { InlineEditableField } from "@/components/ui/InlineEditableField";
 import { useToast } from "@/components/ui/Toast";
 import type { DailyChangeInput } from "@/lib/domain/dailyChanges";
@@ -18,12 +19,12 @@ const zodError = (schema: { safeParse: (v: unknown) => { success: boolean; error
     return r.success ? null : (r.error?.issues[0]?.message ?? "Некоректне значення.");
   };
 
-function Block({ index, label, children }: { index: number; label: string; children: ReactNode }) {
+function Block({ icon, label, children }: { icon: FieldIconKey; label: string; children: ReactNode }) {
   return (
     <section className="border-b border-line py-4 last:border-b-0">
-      <h3 className="mb-2 font-mono text-[11px] tracking-wide text-fg-muted uppercase">
-        {String(index).padStart(2, "0")} / {label}
-      </h3>
+      <FieldLabel as="h3" icon={icon} className="mb-2">
+        {label}
+      </FieldLabel>
       {children}
     </section>
   );
@@ -71,8 +72,8 @@ export function DailyUpdatesEditor({
     return null;
   };
 
-  const collection = (index: number, field: CollectionField, label: string) => (
-    <Block index={index} label={label}>
+  const collection = (field: CollectionField, label: string) => (
+    <Block icon={field} label={label}>
       <DailyCollection
         field={field}
         items={content[field] as CollectionItem[]}
@@ -85,11 +86,11 @@ export function DailyUpdatesEditor({
 
   return (
     <div className="rounded-lg border border-line bg-surface-1/40 px-5">
-      <div className="-mx-1 border-b border-line [--label-w:140px]">
+      <div className="-mx-1 border-b border-line [--label-w:180px]">
         <InlineEditableField
           kind="text"
-          label="01 / Title"
-          labelStyle="mono"
+          label="Title"
+          icon="title"
           value={content.title}
           maxLength={300}
           validate={zodError(titleSchema)}
@@ -97,8 +98,8 @@ export function DailyUpdatesEditor({
         />
         <InlineEditableField
           kind="number"
-          label="02 / Rate"
-          labelStyle="mono"
+          label="Rate"
+          icon="rate"
           value={content.rate}
           format={(v) => formatRate(v)}
           prefix="$"
@@ -108,30 +109,30 @@ export function DailyUpdatesEditor({
         />
         <InlineEditableField
           kind="textarea"
-          label="03 / Description"
-          labelStyle="mono"
+          label="Description"
+          icon="description"
           value={content.description}
           counter={MAX_DESCRIPTION}
           validate={zodError(descriptionSchema)}
           onSave={(value) => apply({ field: "description", value })}
         />
       </div>
-      {collection(4, "portfolio", "Portfolio")}
-      <div className="-mx-1 border-b border-line [--label-w:140px]">
+      {collection("portfolio", "Portfolio")}
+      <div className="-mx-1 border-b border-line [--label-w:180px]">
         <InlineEditableField
           kind="tags"
-          label="05 / Skills"
-          labelStyle="mono"
+          label="Skills"
+          icon="skills"
           value={content.skills}
           max={MAX_SKILLS}
           validate={zodError(skillsSchema)}
           onSave={(value) => apply({ field: "skills", value })}
         />
       </div>
-      {collection(6, "project_catalog", "Project Catalog")}
-      {collection(7, "certifications", "Certifications")}
-      {collection(8, "employment_history", "Employment history")}
-      {collection(9, "other_experiences", "Other experiences")}
+      {collection("project_catalog", "Project Catalog")}
+      {collection("certifications", "Certifications")}
+      {collection("employment_history", "Employment history")}
+      {collection("other_experiences", "Other experiences")}
     </div>
   );
 }

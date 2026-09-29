@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Plus, X } from "lucide-react";
+import { ImagePlus, Plus, UserPlus, X } from "lucide-react";
 import { createProfileAction } from "@/app/(app)/profiles/actions";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -115,7 +115,7 @@ export function AddProfileDialog({ open, onClose }: { open: boolean; onClose: ()
       open={open}
       onClose={close}
       title="Додати профіль"
-      meta="new profile"
+      icon={UserPlus}
       width={540}
       dismissible={!pending}
       footer={

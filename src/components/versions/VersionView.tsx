@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, History, Pencil } from "lucide-react";
+import { Archive, ArrowLeft, ExternalLink, History, Layers, Pencil } from "lucide-react";
 import { buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FieldLabel, type FieldIconKey } from "@/components/ui/FieldLabel";
 import { COLLECTION_META, FIELD_LABELS } from "@/lib/domain/collections";
 import type {
   Certification,
@@ -16,12 +17,12 @@ import type {
 import { formatPlainDate, formatPrice, formatRate } from "@/lib/format";
 import { ChangeRecord } from "./ChangeRecord";
 
-export function Section({ index, label, children }: { index: number; label: string; children: ReactNode }) {
+export function Section({ icon, label, children }: { icon: FieldIconKey; label: string; children: ReactNode }) {
   return (
-    <section className="grid grid-cols-[168px_minmax(0,1fr)] gap-x-6 border-b border-line py-4 last:border-b-0">
-      <h3 className="pt-0.5 font-mono text-[11px] tracking-wide text-fg-muted uppercase">
-        {String(index).padStart(2, "0")} / {label}
-      </h3>
+    <section className="grid grid-cols-[180px_minmax(0,1fr)] gap-x-6 border-b border-line py-4 last:border-b-0">
+      <FieldLabel as="h3" icon={icon} className="pt-0.5">
+        {label}
+      </FieldLabel>
       <div className="min-w-0 text-sm">{children}</div>
     </section>
   );
@@ -120,24 +121,21 @@ function CollectionList({
 export function VersionContentSections({
   version,
   imageUrls,
-  startIndex = 1,
 }: {
   version: Pick<ProfileVersion, "updateDate" | "content">;
   imageUrls: Record<string, string>;
-  startIndex?: number;
 }) {
   const c = version.content;
-  let n = startIndex;
   return (
     <>
-      <Section index={n++} label={FIELD_LABELS.update_date}>
+      <Section icon="update_date" label={FIELD_LABELS.update_date}>
         <span className="font-mono">{formatPlainDate(version.updateDate)}</span>
       </Section>
-      <Section index={n++} label="Title">{c.title ?? <Muted />}</Section>
-      <Section index={n++} label="Rate">
+      <Section icon="title" label="Title">{c.title ?? <Muted />}</Section>
+      <Section icon="rate" label="Rate">
         {c.rate !== null ? <span className="font-mono">{formatRate(c.rate)}</span> : <Muted />}
       </Section>
-      <Section index={n++} label="Description">
+      <Section icon="description" label="Description">
         {c.description ? (
           <>
             <p className="break-words whitespace-pre-wrap text-fg">{c.description}</p>
@@ -147,10 +145,10 @@ export function VersionContentSections({
           <Muted />
         )}
       </Section>
-      <Section index={n++} label="Portfolio">
+      <Section icon="portfolio" label="Portfolio">
         <CollectionList field="portfolio" items={c.portfolio} imageUrls={imageUrls} />
       </Section>
-      <Section index={n++} label="Skills">
+      <Section icon="skills" label="Skills">
         {c.skills.length === 0 ? (
           <Muted />
         ) : (
@@ -164,19 +162,19 @@ export function VersionContentSections({
           </div>
         )}
       </Section>
-      <Section index={n++} label="Project Catalog">
+      <Section icon="project_catalog" label="Project Catalog">
         <CollectionList field="project_catalog" items={c.project_catalog} imageUrls={imageUrls} />
       </Section>
-      <Section index={n++} label="Certifications">
+      <Section icon="certifications" label="Certifications">
         <CollectionList field="certifications" items={c.certifications} imageUrls={imageUrls} />
       </Section>
-      <Section index={n++} label="Employment history">
+      <Section icon="employment_history" label="Employment history">
         <CollectionList field="employment_history" items={c.employment_history} imageUrls={imageUrls} />
       </Section>
-      <Section index={n++} label="Other experiences">
+      <Section icon="other_experiences" label="Other experiences">
         <CollectionList field="other_experiences" items={c.other_experiences} imageUrls={imageUrls} />
       </Section>
-      <Section index={n++} label={FIELD_LABELS.additional_info}>
+      <Section icon="additional_info" label={FIELD_LABELS.additional_info}>
         {c.additional_info ? <p className="break-words whitespace-pre-wrap">{c.additional_info}</p> : <Muted />}
       </Section>
     </>
@@ -221,8 +219,12 @@ export function VersionView({
     <div className="min-w-0">
       <div className="flex items-end justify-between gap-4 pb-3">
         <div>
-          <p className="font-mono text-xs text-fg-muted">{version.isCurrent ? "// current version" : "// archived version"}</p>
-          <h2 className="mt-1 flex items-center gap-3 text-lg font-semibold">
+          <h2 className="flex items-center gap-2.5 text-lg font-semibold">
+            {version.isCurrent ? (
+              <Layers className="size-5 text-accent" aria-hidden />
+            ) : (
+              <Archive className="size-5 text-fg-muted" aria-hidden />
+            )}
             {version.isCurrent ? "Актуальна версія" : "Архівна версія"}
             <span className="font-mono text-sm font-normal text-fg-muted">від {formatPlainDate(version.updateDate)}</span>
           </h2>
@@ -243,7 +245,7 @@ export function VersionView({
 
       <div className="rounded-lg border border-line bg-surface-1/40 px-5">
         <VersionContentSections version={version} imageUrls={imageUrls} />
-        <Section index={12} label="Історія">
+        <Section icon="history" label="Історія">
           {changes.length === 0 ? (
             <EmptyState icon={History} message="Щоденних змін у цій версії немає." className="py-6" />
           ) : (

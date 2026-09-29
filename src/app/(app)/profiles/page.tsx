@@ -16,7 +16,7 @@ export default async function ProfilesPage() {
 
   return (
     <>
-      <PageHeader meta="profiles" title="01 · Профілі" count={profiles.length} actions={<AddProfileButton />} />
+      <PageHeader icon={Users} title="01 · Профілі" count={profiles.length} actions={<AddProfileButton />} />
       {profiles.length === 0 ? (
         <EmptyState icon={Users} message="Профілів поки немає. Додайте перший." />
       ) : (

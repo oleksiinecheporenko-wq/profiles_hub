@@ -2,15 +2,15 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import clsx from "clsx";
-import { X } from "lucide-react";
+import { X, type LucideIcon } from "lucide-react";
 import { Button, IconButton } from "./Button";
 
 type DialogProps = {
   open: boolean;
   onClose: () => void;
   title: string;
-  /** Small `//` metadata above the title. */
-  meta?: string;
+  /** Thematic icon before the title. */
+  icon?: LucideIcon;
   width?: number;
   footer?: ReactNode;
   children: ReactNode;
@@ -23,7 +23,7 @@ export function Dialog({
   open,
   onClose,
   title,
-  meta,
+  icon: Icon,
   width = 540,
   footer,
   children,
@@ -66,12 +66,10 @@ export function Dialog({
       {open && (
         <>
           <div className="flex items-start justify-between gap-4 border-b border-line px-6 pt-5 pb-4">
-            <div>
-              {meta && <p className="font-mono text-xs text-fg-muted">{`// ${meta}`}</p>}
-              <h2 id={titleId} className="mt-1 text-lg font-semibold">
-                {title}
-              </h2>
-            </div>
+            <h2 id={titleId} className="flex items-center gap-2.5 text-lg font-semibold">
+              {Icon && <Icon className="size-5 text-accent" aria-hidden />}
+              {title}
+            </h2>
             <IconButton label="Закрити" size="sm" onClick={onClose} disabled={!dismissible}>
               <X className="size-4" aria-hidden />
             </IconButton>

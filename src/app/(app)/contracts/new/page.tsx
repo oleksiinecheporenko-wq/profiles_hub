@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FilePlus2 } from "lucide-react";
 import { ContractForm } from "@/components/contracts/ContractForm";
 import { PageHeader } from "@/components/PageHeader";
 import { getRequestRepository } from "@/lib/data";
@@ -25,7 +25,7 @@ export default async function NewContractPage(props: PageProps<"/contracts/new">
         <ArrowLeft className="size-3.5" aria-hidden />
         {locked ? "Профіль" : "Контракти"}
       </Link>
-      <PageHeader meta="contracts / new" title="Новий контракт" />
+      <PageHeader icon={FilePlus2} title="Новий контракт" />
       <ContractForm
         mode="create"
         profiles={profiles}

@@ -16,7 +16,7 @@ export default async function StatusProfilesPage() {
 
   return (
     <>
-      <PageHeader meta="overview" title="02 · Статус профілів" count={profiles.length} actions={<AddProfileButton />} />
+      <PageHeader icon={LayoutGrid} title="02 · Статус профілів" count={profiles.length} actions={<AddProfileButton />} />
       {profiles.length === 0 ? (
         <EmptyState icon={LayoutGrid} message="Профілів поки немає. Додайте перший." />
       ) : (

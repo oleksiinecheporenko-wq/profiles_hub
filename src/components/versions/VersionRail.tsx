@@ -1,7 +1,8 @@
 import Link from "next/link";
 import clsx from "clsx";
-import { Plus } from "lucide-react";
+import { History, Plus } from "lucide-react";
 import { buttonClassName } from "@/components/ui/Button";
+import { SectionHeading } from "@/components/ui/FieldLabel";
 import type { VersionSummary } from "@/lib/domain/types";
 import { formatPlainDate } from "@/lib/format";
 
@@ -30,7 +31,7 @@ export function VersionRail({
   return (
     <aside aria-label="Версії профілю" className="sticky top-6 flex flex-col gap-3 self-start">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-xs text-fg-muted">{"// profile history"}</p>
+        <SectionHeading icon={History} as="h2">Історія версій</SectionHeading>
         <span className="font-mono text-xs text-fg-muted">{versions.length}</span>
       </div>
       <Link

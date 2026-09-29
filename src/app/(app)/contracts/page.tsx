@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import { ContractsTable } from "@/components/contracts/ContractsTable";
 import { PageHeader } from "@/components/PageHeader";
 import { buttonClassName } from "@/components/ui/Button";
@@ -26,7 +26,7 @@ export default async function ContractsPage() {
 
   return (
     <>
-      <PageHeader meta="contracts" title="04 · Контракти" count={contracts.length} actions={add} />
+      <PageHeader icon={FileText} title="04 · Контракти" count={contracts.length} actions={add} />
       <ContractsTable contracts={contracts} photoUrls={photoUrls} profileOptions={options} />
     </>
   );

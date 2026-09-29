@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AutoCollapseSidebar } from "@/components/shell/SidebarProvider";
 import { buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SectionHeading } from "@/components/ui/FieldLabel";
 import { Tabs } from "@/components/ui/Tabs";
 import type { Repository } from "@/lib/data/repository";
 import { compareVersions, onlyDifferences } from "@/lib/domain/diff";
@@ -92,9 +93,9 @@ export async function UpdatesTab({
           <DailyUpdatesEditor key={current.id} profileId={profileId} version={current} imageUrls={imageUrls} />
           <aside aria-labelledby="daily-history-heading" className="sticky top-6 flex max-h-[calc(100vh-3rem)] flex-col self-start">
             <div className="flex items-center justify-between pb-2">
-              <h3 id="daily-history-heading" className="font-mono text-xs text-fg-muted">
-                {"// change history"}
-              </h3>
+              <SectionHeading id="daily-history-heading" icon={History} as="h3">
+                Історія змін
+              </SectionHeading>
               <span className="font-mono text-xs text-fg-muted">{changes.length}</span>
             </div>
             <div className="min-h-0 overflow-y-auto rounded-lg border border-line bg-surface-1/40 px-4">
@@ -167,7 +168,7 @@ export async function UpdatesTab({
             Ліворуч і праворуч обрано ту саму версію — відмінностей не буде. Оберіть іншу версію або поміняйте місцями.
           </p>
         )}
-        <div className="grid grid-cols-[132px_minmax(0,1fr)] gap-x-5 px-4 pb-2 pl-[14px] text-[13px] text-fg-muted">
+        <div className="grid grid-cols-[180px_minmax(0,1fr)] gap-x-5 px-4 pb-2 pl-[14px] text-[13px] text-fg-muted">
           <span className="font-mono text-[11px] uppercase">{changedCount} змінено</span>
           <div className="grid grid-cols-2 gap-x-6">
             {label(left)}

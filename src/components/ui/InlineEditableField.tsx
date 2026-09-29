@@ -3,6 +3,7 @@
 import { useId, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { Check, Loader2, Pencil, X } from "lucide-react";
+import { FieldLabel, type FieldIconKey } from "./FieldLabel";
 import { controlClassName } from "./Input";
 import { SearchableSelect, type SelectOption } from "./SearchableSelect";
 import { TagInput } from "./TagInput";
@@ -16,8 +17,8 @@ type Base = {
   badge?: ReactNode;
   emptyText?: string;
   disabled?: boolean;
-  /** `mono`: small uppercase label, as in version field groups (`01 / TITLE`). */
-  labelStyle?: "default" | "mono";
+  /** Thematic icon: renders the label bold, as in version field groups. */
+  icon?: FieldIconKey;
   /** Client-side check before saving; return an error message to block. */
   validate?: (value: never) => string | null;
 };
@@ -97,7 +98,7 @@ function sameValue(a: unknown, b: unknown) {
  * a newline and Ctrl/Cmd+Enter saves. The previous value stays on cancel or failure.
  */
 export function InlineEditableField(props: InlineEditableFieldProps) {
-  const { label, badge, emptyText = "—", disabled, labelStyle = "default" } = props;
+  const { label, badge, emptyText = "—", disabled, icon } = props;
   const id = useId();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => toDraft(props));
@@ -162,12 +163,15 @@ export function InlineEditableField(props: InlineEditableFieldProps) {
   return (
     <div className="group grid grid-cols-[var(--label-w,152px)_minmax(0,1fr)] gap-x-4 border-b border-line py-3 last:border-b-0">
       <div className="pt-[3px]">
-        <label
-          htmlFor={editing ? id : undefined}
-          className={labelStyle === "mono" ? "font-mono text-[11px] tracking-wide text-fg-muted uppercase" : "text-[13px] text-fg-muted"}
-        >
-          {label}
-        </label>
+        {icon ? (
+          <FieldLabel as="label" htmlFor={editing ? id : undefined} icon={icon}>
+            {label}
+          </FieldLabel>
+        ) : (
+          <label htmlFor={editing ? id : undefined} className="text-[13px] text-fg-muted">
+            {label}
+          </label>
+        )}
         {badge && <div className="mt-0.5">{badge}</div>}
       </div>
 

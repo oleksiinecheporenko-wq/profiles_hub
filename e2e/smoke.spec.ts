@@ -28,7 +28,7 @@ test("main flow: profile → daily change → global update → comparison → s
   // The change appears in `Щоденні оновлення`.
   await page.getByRole("link", { name: "Оновлення", exact: true }).click();
   await page.getByRole("link", { name: "Щоденні оновлення" }).click();
-  const history = page.getByRole("complementary", { name: "// change history" });
+  const history = page.getByRole("complementary", { name: "Історія змін" });
   await expect(history.getByText("$50/год")).toBeVisible();
 
   // Create a global update with a new Rate.

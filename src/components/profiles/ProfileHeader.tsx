@@ -111,8 +111,7 @@ export function ProfileHeader({
             }}
           />
           <div className="min-w-0">
-            <p className="font-mono text-xs text-fg-muted">{"// profile"}</p>
-            <h1 className="mt-1 truncate text-[26px] leading-tight font-semibold tracking-tight" title={profile.fullName}>
+            <h1 className="truncate text-[26px] leading-tight font-semibold tracking-tight" title={profile.fullName}>
               {profile.fullName}
             </h1>
             <p className="mt-1 truncate text-sm text-fg-2" title={profile.title ?? undefined}>

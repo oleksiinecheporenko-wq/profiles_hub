@@ -1,26 +1,25 @@
 import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
 type Props = {
-  /** Small `//` metadata above the title, e.g. `profiles`. */
-  meta: string;
+  /** Thematic icon shown before the title. */
+  icon: LucideIcon;
   title: string;
   /** Muted figure next to the title, e.g. a count. */
   count?: number;
   actions?: ReactNode;
 };
 
-export function PageHeader({ meta, title, count, actions }: Props) {
+export function PageHeader({ icon: Icon, title, count, actions }: Props) {
   return (
-    <header className="flex items-end justify-between gap-6 pb-6">
-      <div className="min-w-0">
-        <p className="font-mono text-xs text-fg-muted">{`// ${meta}`}</p>
-        <h1 className="mt-1.5 flex items-baseline gap-3 text-[28px] leading-tight font-semibold tracking-tight">
-          {title}
-          {count !== undefined && (
-            <span className="font-mono text-base font-normal text-fg-muted">{count}</span>
-          )}
-        </h1>
-      </div>
+    <header className="flex items-center justify-between gap-6 pb-6">
+      <h1 className="flex min-w-0 items-center gap-3 text-[28px] leading-tight font-semibold tracking-tight">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-line-strong bg-surface-1">
+          <Icon className="size-5 text-accent" aria-hidden />
+        </span>
+        <span className="truncate">{title}</span>
+        {count !== undefined && <span className="font-mono text-base font-normal text-fg-muted">{count}</span>}
+      </h1>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </header>
   );

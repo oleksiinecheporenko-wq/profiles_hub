@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Activity } from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 import { PageHeader } from "@/components/PageHeader";
 import { getRequestRepository } from "@/lib/data";
@@ -17,7 +18,7 @@ export default async function ActionsPage(props: PageProps<"/actions">) {
 
   return (
     <>
-      <PageHeader meta="activity" title="03 · Дії" />
+      <PageHeader icon={Activity} title="03 · Дії" />
       {/* Remount on filter change so appended pages reset. */}
       <ActivityFeed key={JSON.stringify(filters)} initial={page} profileOptions={options} />
     </>

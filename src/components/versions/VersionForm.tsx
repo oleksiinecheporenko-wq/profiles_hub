@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, FilePlus2, PenLine } from "lucide-react";
 import {
   createGlobalVersionAction,
   editGlobalVersionAction,
 } from "@/app/(app)/profiles/[id]/versionActions";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialog";
+import { FieldLabel, type FieldIconKey } from "@/components/ui/FieldLabel";
 import { controlClassName } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
 import { useToast } from "@/components/ui/Toast";
@@ -49,8 +50,8 @@ function mapErrors(issues: { path: PropertyKey[]; message: string }[], content: 
   return out;
 }
 
-function Row({ index, label, htmlFor, error, children, hint }: {
-  index: number;
+function Row({ icon, label, htmlFor, error, children, hint }: {
+  icon: FieldIconKey;
   label: string;
   htmlFor?: string;
   error?: string;
@@ -58,10 +59,10 @@ function Row({ index, label, htmlFor, error, children, hint }: {
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[168px_minmax(0,1fr)] gap-x-6 border-b border-line py-4 last:border-b-0">
-      <label htmlFor={htmlFor} className="pt-2.5 font-mono text-[11px] tracking-wide text-fg-muted uppercase">
-        {String(index).padStart(2, "0")} / {label}
-      </label>
+    <div className="grid grid-cols-[180px_minmax(0,1fr)] gap-x-6 border-b border-line py-4 last:border-b-0">
+      <FieldLabel as="label" htmlFor={htmlFor} icon={icon} className="pt-2.5">
+        {label}
+      </FieldLabel>
       <div className="min-w-0">
         {children}
         {(error || hint) && (
@@ -141,7 +142,6 @@ export function VersionForm(props: Props) {
     });
   };
 
-  let n = 1;
   const collectionErrors = (field: CollectionField) => {
     const prefix = `${field}.`;
     const out: Errors = {};
@@ -149,7 +149,7 @@ export function VersionForm(props: Props) {
     return out;
   };
   const collection = (field: CollectionField) => (
-    <Row index={n++} label={FIELD_LABELS[field]} error={errors[field]}>
+    <Row icon={field} label={FIELD_LABELS[field]} error={errors[field]}>
       <CollectionEditor
         field={field}
         items={content[field] as CollectionItem[]}
@@ -164,8 +164,12 @@ export function VersionForm(props: Props) {
   return (
     <form onSubmit={submit} noValidate className="min-w-0">
       <div className="pb-3">
-        <p className="font-mono text-xs text-fg-muted">{props.mode === "create" ? "// new global update" : "// edit version"}</p>
-        <h2 className="mt-1 text-lg font-semibold">
+        <h2 className="flex items-center gap-2.5 text-lg font-semibold">
+          {props.mode === "create" ? (
+            <FilePlus2 className="size-5 text-accent" aria-hidden />
+          ) : (
+            <PenLine className="size-5 text-accent" aria-hidden />
+          )}
           {props.mode === "create" ? "Нове глобальне оновлення" : "Редагування версії"}
         </h2>
         {props.mode === "create" && (
@@ -182,7 +186,7 @@ export function VersionForm(props: Props) {
       </div>
 
       <div className="rounded-lg border border-line bg-surface-1/40 px-5">
-        <Row index={n++} label={FIELD_LABELS.update_date} htmlFor="v-date" error={errors.updateDate}>
+        <Row icon="update_date" label={FIELD_LABELS.update_date} htmlFor="v-date" error={errors.updateDate}>
           <input
             id="v-date"
             type="date"
@@ -192,7 +196,7 @@ export function VersionForm(props: Props) {
             className={clsx(controlClassName, "h-10 w-48 font-mono [color-scheme:dark]")}
           />
         </Row>
-        <Row index={n++} label="Title" htmlFor="v-title" error={errors.title}>
+        <Row icon="title" label="Title" htmlFor="v-title" error={errors.title}>
           <input
             id="v-title"
             value={content.title ?? ""}
@@ -201,7 +205,7 @@ export function VersionForm(props: Props) {
             className={clsx(controlClassName, "h-10")}
           />
         </Row>
-        <Row index={n++} label="Rate" htmlFor="v-rate" error={errors.rate}>
+        <Row icon="rate" label="Rate" htmlFor="v-rate" error={errors.rate}>
           <div className="relative w-48">
             <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 font-mono text-sm text-fg-muted">$</span>
             <input
@@ -220,7 +224,7 @@ export function VersionForm(props: Props) {
           </div>
         </Row>
         <Row
-          index={n++}
+          icon="description"
           label="Description"
           htmlFor="v-description"
           error={errors.description}
@@ -239,14 +243,14 @@ export function VersionForm(props: Props) {
           />
         </Row>
         {collection("portfolio")}
-        <Row index={n++} label="Skills" htmlFor="v-skills" error={errors.skills}>
+        <Row icon="skills" label="Skills" htmlFor="v-skills" error={errors.skills}>
           <TagInput id="v-skills" value={content.skills} onChange={(v) => set("skills", v)} max={MAX_SKILLS} />
         </Row>
         {collection("project_catalog")}
         {collection("certifications")}
         {collection("employment_history")}
         {collection("other_experiences")}
-        <Row index={n++} label={FIELD_LABELS.additional_info} htmlFor="v-info" error={errors.additional_info}>
+        <Row icon="additional_info" label={FIELD_LABELS.additional_info} htmlFor="v-info" error={errors.additional_info}>
           <textarea
             id="v-info"
             rows={4}

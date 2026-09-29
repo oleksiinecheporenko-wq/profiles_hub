@@ -7,6 +7,8 @@ import {
   updateContentFieldAction,
   updateProfileFieldsAction,
 } from "@/app/(app)/profiles/[id]/actions";
+import { Settings2, UserRoundPen } from "lucide-react";
+import { SectionHeading } from "@/components/ui/FieldLabel";
 import { InlineEditableField } from "@/components/ui/InlineEditableField";
 import { useToast } from "@/components/ui/Toast";
 import type { ActionResult } from "@/lib/actions/result";
@@ -103,9 +105,9 @@ export function MainInfoTab({
   return (
     <div className="grid grid-cols-[minmax(0,62fr)_minmax(0,38fr)] gap-8">
       <section aria-labelledby="profile-content-heading">
-        <h2 id="profile-content-heading" className="mb-1 font-mono text-xs text-fg-muted">
-          {"// profile content"}
-        </h2>
+        <SectionHeading id="profile-content-heading" icon={UserRoundPen} className="mb-2">
+          Вміст профілю
+        </SectionHeading>
         <div className="rounded-lg border border-line bg-surface-1 px-4">
           <InlineEditableField
             kind="text"
@@ -161,9 +163,9 @@ export function MainInfoTab({
       </section>
 
       <section aria-labelledby="account-details-heading">
-        <h2 id="account-details-heading" className="mb-1 font-mono text-xs text-fg-muted">
-          {"// account details"}
-        </h2>
+        <SectionHeading id="account-details-heading" icon={Settings2} className="mb-2">
+          Дані акаунта
+        </SectionHeading>
         <div className="rounded-lg border border-line bg-surface-1 px-4 [--label-w:112px]">
           <InlineEditableField
             kind="select"

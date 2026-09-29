@@ -52,7 +52,8 @@
   --color-neutral-soft: var(--neutral-soft);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+  /* One typeface everywhere: "font-mono" is Inter with tabular figures (dates, sums). */
+  --font-mono: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -97,6 +98,10 @@ body {
   min-width: 1280px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
 }
 
 ::selection {

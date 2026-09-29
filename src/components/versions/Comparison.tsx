@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import clsx from "clsx";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { COLLECTION_META, FIELD_LABELS, itemFieldLabel, itemMetaLine } from "@/lib/domain/collections";
 import type { CollectionRow, ComparisonRowData, ItemPair, ScalarRow, SkillsRow } from "@/lib/domain/diff";
 import type { CollectionField, CollectionItem } from "@/lib/domain/types";
@@ -16,12 +17,14 @@ export function ComparisonRow({ row, children }: { row: ComparisonRowData; child
     <section
       aria-label={FIELD_LABELS[row.field]}
       className={clsx(
-        "grid grid-cols-[132px_minmax(0,1fr)] gap-x-5 border-b border-l-2 border-b-line py-4 pr-4 pl-3",
+        "grid grid-cols-[180px_minmax(0,1fr)] gap-x-5 border-b border-l-2 border-b-line py-4 pr-4 pl-3",
         row.changed ? "border-l-accent bg-accent/[.035]" : "border-l-transparent",
       )}
     >
       <div className="flex flex-col items-start gap-1.5 pt-0.5">
-        <h3 className="font-mono text-[11px] tracking-wide text-fg-muted uppercase">{FIELD_LABELS[row.field]}</h3>
+        <FieldLabel as="h3" icon={row.field}>
+          {FIELD_LABELS[row.field]}
+        </FieldLabel>
         {row.changed && (
           <span className="rounded-sm bg-accent-soft px-1.5 font-mono text-[10px] tracking-wide text-accent uppercase">Змінено</span>
         )}

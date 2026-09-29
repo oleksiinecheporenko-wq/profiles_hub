@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, PenLine } from "lucide-react";
 import { CollapsibleDialog, Comments, ContractActions } from "@/components/contracts/ContractDetailParts";
 import { ContractForm } from "@/components/contracts/ContractForm";
 import { PageHeader } from "@/components/PageHeader";
 import { ContractStatusBadge } from "@/components/ui/Badges";
+import { FieldLabel, type FieldIconKey } from "@/components/ui/FieldLabel";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { getRequestRepository } from "@/lib/data";
 import { profilePhotoUrls } from "@/lib/data/images";
@@ -25,10 +26,12 @@ export async function generateMetadata(props: PageProps<"/contracts/[id]">): Pro
   return { title: contract?.title ?? "Контракт" };
 }
 
-function Block({ label, children }: { label: string; children: ReactNode }) {
+function Block({ icon, label, children }: { icon: FieldIconKey; label: string; children: ReactNode }) {
   return (
-    <section className="grid grid-cols-[140px_minmax(0,1fr)] gap-x-6 border-b border-line py-4 last:border-b-0">
-      <h2 className="pt-0.5 font-mono text-[11px] tracking-wide text-fg-muted uppercase">{label}</h2>
+    <section className="grid grid-cols-[160px_minmax(0,1fr)] gap-x-6 border-b border-line py-4 last:border-b-0">
+      <FieldLabel as="h2" icon={icon} className="pt-0.5">
+        {label}
+      </FieldLabel>
       <div className="min-w-0">{children}</div>
     </section>
   );
@@ -51,7 +54,7 @@ export default async function ContractPage(props: PageProps<"/contracts/[id]">) 
           <ArrowLeft className="size-3.5" aria-hidden />
           До контракту
         </Link>
-        <PageHeader meta="contracts / edit" title="Редагування контракту" />
+        <PageHeader icon={PenLine} title="Редагування контракту" />
         <ContractForm
           key={contract.updatedAt}
           mode="edit"
@@ -84,8 +87,8 @@ export default async function ContractPage(props: PageProps<"/contracts/[id]">) 
 
       <header className="flex items-start justify-between gap-6 pb-6">
         <div className="min-w-0">
-          <p className="font-mono text-xs text-fg-muted">{"// contract"}</p>
-          <h1 className="mt-1 flex flex-wrap items-center gap-3 text-[26px] leading-tight font-semibold tracking-tight">
+          <h1 className="flex flex-wrap items-center gap-3 text-[26px] leading-tight font-semibold tracking-tight">
+            <FileText className="size-6 shrink-0 text-accent" aria-hidden />
             <span className="break-words">{contract.title}</span>
             <ContractStatusBadge status={contract.status} />
           </h1>
@@ -115,20 +118,20 @@ export default async function ContractPage(props: PageProps<"/contracts/[id]">) 
       </header>
 
       <div className="max-w-4xl rounded-lg border border-line bg-surface-1/40 px-5">
-        <Block label="Рейт">
+        <Block icon="rate" label="Рейт">
           <span className={contract.rate === null ? "text-fg-muted" : "font-mono text-sm"}>{formatRate(contract.rate)}</span>
         </Block>
-        <Block label="Опис">
+        <Block icon="description" label="Опис">
           {contract.description ? (
             <p className="text-sm break-words whitespace-pre-wrap">{contract.description}</p>
           ) : (
             <span className="text-fg-muted">—</span>
           )}
         </Block>
-        <Block label="Діалог">
+        <Block icon="dialog" label="Діалог">
           {contract.dialog ? <CollapsibleDialog text={contract.dialog} /> : <span className="text-fg-muted">—</span>}
         </Block>
-        <Block label="Коментарі">
+        <Block icon="comments" label="Коментарі">
           <Comments contractId={contract.id} comments={contract.comments} />
         </Block>
       </div>

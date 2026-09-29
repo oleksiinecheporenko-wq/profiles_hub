@@ -52,7 +52,7 @@ export function AppSidebar({ mockData }: { mockData: boolean }) {
                 UPWORK <span className="text-accent">/</span> PROFILE MANAGER
               </span>
               <span className="mt-0.5 block font-mono text-[11px] text-fg-muted">
-                {"// internal workspace"}
+                internal workspace
               </span>
             </span>
           )}
