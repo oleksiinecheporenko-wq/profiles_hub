@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LayoutPanelTop } from "lucide-react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { MainInfoTab } from "@/components/profiles/MainInfoTab";
 import { ProfileHeader } from "@/components/profiles/ProfileHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { ContractsTable } from "@/components/contracts/ContractsTable";
+import { buttonClassName } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { UPDATE_SUBTABS, UpdatesTab, type UpdatesSubtab } from "@/components/versions/UpdatesTab";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
@@ -41,7 +43,6 @@ export async function generateMetadata(props: PageProps<"/profiles/[id]">): Prom
   return { title: detail?.profile.fullName ?? "Профіль" };
 }
 
-// TODO(phase 10): `Контракти` tab.
 export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
   const { id } = await props.params;
   const sp = await props.searchParams;
@@ -92,7 +93,7 @@ export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
         ) : tab === "activity" ? (
           <ProfileActivity profileId={id} sp={sp} />
         ) : (
-          <EmptyState icon={LayoutPanelTop} message="Вміст цієї вкладки ще недоступний." />
+          <ProfileContracts profileId={id} />
         )}
       </div>
     </>
@@ -109,4 +110,20 @@ async function ProfileActivity({
   const filters = { ...parseFeedFilters(sp), profileId };
   const page = await loadFeed(await getRequestRepository(), filters);
   return <ActivityFeed key={JSON.stringify(filters)} initial={page} fixedParams={{ profile: profileId }} />;
+}
+
+async function ProfileContracts({ profileId }: { profileId: string }) {
+  const contracts = await (await getRequestRepository()).listContracts({ profileId });
+  const add = (
+    <Link href={`/contracts/new?profile=${profileId}`} className={buttonClassName("primary", "sm")}>
+      <Plus className="size-3.5" aria-hidden />
+      Додати контракт
+    </Link>
+  );
+  return (
+    <div className="flex flex-col gap-4">
+      {contracts.length > 0 && <div className="flex justify-end">{add}</div>}
+      <ContractsTable contracts={contracts} photoUrls={{}} emptyAction={add} />
+    </div>
+  );
 }

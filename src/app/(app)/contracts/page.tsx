@@ -1,25 +1,33 @@
 import type { Metadata } from "next";
-import { FileText, Plus } from "lucide-react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { ContractsTable } from "@/components/contracts/ContractsTable";
 import { PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { buttonClassName } from "@/components/ui/Button";
+import { getRequestRepository } from "@/lib/data";
+import { profilePhotoUrls } from "@/lib/data/images";
 
 export const metadata: Metadata = { title: "Контракти" };
 
-// TODO(phase 10): contracts list with status segments, profile filter and search.
-export default function ContractsPage() {
+export default async function ContractsPage() {
+  const repo = await getRequestRepository();
+  const [contracts, profiles] = await Promise.all([repo.listContracts(), repo.listProfiles()]);
+  const photoUrls = await profilePhotoUrls(repo, contracts.map((c) => c.profile));
+  const options = profiles
+    .map((p) => ({ value: p.id, label: p.fullName }))
+    .sort((a, b) => a.label.localeCompare(b.label, "uk"));
+
+  const add = (
+    <Link href="/contracts/new" className={buttonClassName("primary", "md")}>
+      <Plus className="size-4" aria-hidden />
+      Додати контракт
+    </Link>
+  );
+
   return (
     <>
-      <PageHeader
-        meta="contracts"
-        title="04 · Контракти"
-        actions={
-          <Button variant="primary" icon={<Plus className="size-4" aria-hidden />} disabled>
-            Додати контракт
-          </Button>
-        }
-      />
-      <EmptyState icon={FileText} message="Контрактів поки немає." />
+      <PageHeader meta="contracts" title="04 · Контракти" count={contracts.length} actions={add} />
+      <ContractsTable contracts={contracts} photoUrls={photoUrls} profileOptions={options} />
     </>
   );
 }
