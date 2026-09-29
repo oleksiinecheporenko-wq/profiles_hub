@@ -1,5 +1,6 @@
 import "server-only";
 
+import { connection } from "next/server";
 import { monotonicClock, MockRepository } from "./mock";
 import type { Repository } from "./repository";
 import { buildSampleDataset } from "./sample";
@@ -31,4 +32,13 @@ async function createRepository(): Promise<Repository> {
 export function getRepository(): Promise<Repository> {
   globalCache.__upmRepository ??= createRepository();
   return globalCache.__upmRepository;
+}
+
+/**
+ * For Server Components: marks the render as request-time (no prerendering at build)
+ * before touching the data source.
+ */
+export async function getRequestRepository(): Promise<Repository> {
+  await connection();
+  return getRepository();
 }
