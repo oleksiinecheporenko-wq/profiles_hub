@@ -130,9 +130,9 @@ export class MockRepository implements Repository {
     oldRow: Record<string, unknown> | null,
     newRow: Record<string, unknown> | null,
   ) {
-    const details = buildLogDetails(op, oldRow, newRow, tx.reason);
-    if (!details) return;
     const row = (newRow ?? oldRow)!;
+    const details = buildLogDetails(op, oldRow, newRow, tx.reason, this.meta(entityType, row));
+    if (!details) return;
     const profileId =
       entityType === "profile"
         ? (row.id as string)
@@ -149,6 +149,22 @@ export class MockRepository implements Repository {
       action: tx.action ?? `${entityType}.${op.toLowerCase()}`,
       details,
     });
+  }
+
+  /** Mirrors `public._activity_meta`. */
+  private meta(entityType: EntityType, row: Record<string, unknown>) {
+    switch (entityType) {
+      case "profile":
+        return { full_name: row.full_name as string };
+      case "profile_language":
+        return { language: row.language as string };
+      case "version":
+        return { update_date: row.update_date as string };
+      case "contract":
+        return { title: row.title as string };
+      case "contract_comment":
+        return { contract_title: this.state.contracts.find((c) => c.id === row.contract_id)?.title ?? null };
+    }
   }
 
   // ---- lookups --------------------------------------------------------------

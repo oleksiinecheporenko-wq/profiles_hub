@@ -6,7 +6,9 @@ import { ProfileHeader } from "@/components/profiles/ProfileHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import { UPDATE_SUBTABS, UpdatesTab, type UpdatesSubtab } from "@/components/versions/UpdatesTab";
+import { ActivityFeed } from "@/components/activity/ActivityFeed";
 import { getRequestRepository } from "@/lib/data";
+import { loadFeed, parseFeedFilters } from "@/lib/data/activityFeed";
 import { profilePhotoUrls } from "@/lib/data/images";
 
 const TABS = [
@@ -39,7 +41,7 @@ export async function generateMetadata(props: PageProps<"/profiles/[id]">): Prom
   return { title: detail?.profile.fullName ?? "Профіль" };
 }
 
-// TODO(phase 9, 10): `Журнал дій`, `Контракти` tabs.
+// TODO(phase 10): `Контракти` tab.
 export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
   const { id } = await props.params;
   const sp = await props.searchParams;
@@ -87,10 +89,24 @@ export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
             mode={mode}
             compare={{ left: str(sp.left), right: str(sp.right), onlyDiff: sp.diff === "1" }}
           />
+        ) : tab === "activity" ? (
+          <ProfileActivity profileId={id} sp={sp} />
         ) : (
           <EmptyState icon={LayoutPanelTop} message="Вміст цієї вкладки ще недоступний." />
         )}
       </div>
     </>
   );
+}
+
+async function ProfileActivity({
+  profileId,
+  sp,
+}: {
+  profileId: string;
+  sp: Record<string, string | string[] | undefined>;
+}) {
+  const filters = { ...parseFeedFilters(sp), profileId };
+  const page = await loadFeed(await getRequestRepository(), filters);
+  return <ActivityFeed key={JSON.stringify(filters)} initial={page} fixedParams={{ profile: profileId }} />;
 }

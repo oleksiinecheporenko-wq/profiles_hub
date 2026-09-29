@@ -80,3 +80,35 @@ export function initials(fullName: string): string {
   const letters = words.length === 1 ? [words[0][0]] : [words[0][0], words[words.length - 1][0]];
   return letters.join("").toLocaleUpperCase("uk");
 }
+
+function kyivOffsetMinutes(at: Date): number {
+  const name =
+    new Intl.DateTimeFormat("en-US", { timeZone: DISPLAY_TIME_ZONE, timeZoneName: "longOffset" })
+      .formatToParts(at)
+      .find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+  const m = /GMT([+-])(\d{2}):?(\d{2})?/.exec(name);
+  if (!m) return 0;
+  return (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] ?? 0));
+}
+
+/** UTC instant of 00:00 in Europe/Kyiv on the given `yyyy-MM-dd` day. */
+export function kyivDayStart(plainDate: string): Date {
+  const [y, m, d] = plainDate.split("-").map(Number);
+  const utcMidnight = Date.UTC(y, m - 1, d);
+  let start = utcMidnight - kyivOffsetMinutes(new Date(utcMidnight)) * 60_000;
+  // Re-check across a DST switch.
+  start = utcMidnight - kyivOffsetMinutes(new Date(start)) * 60_000;
+  return new Date(start);
+}
+
+/** `yyyy-MM-dd` shifted by whole days. */
+export function addDays(plainDate: string, days: number): string {
+  const [y, m, d] = plainDate.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** Kyiv calendar day (`yyyy-MM-dd`) of a timestamp. */
+export function kyivPlainDate(value: DateInput): string {
+  const p = kyivParts(value);
+  return `${p.year}-${p.month}-${p.day}`;
+}

@@ -236,6 +236,14 @@ export type ActivityDetails = {
   /** INSERT/DELETE: the row snapshot. */
   row?: Record<string, unknown>;
   reason?: string;
+  /** Identifying context of the entity (version date, contract title, …). */
+  meta?: {
+    full_name?: string;
+    language?: string;
+    update_date?: string;
+    title?: string;
+    contract_title?: string | null;
+  };
 };
 
 export type ActivityRow = {

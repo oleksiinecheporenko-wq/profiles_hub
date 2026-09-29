@@ -27,3 +27,13 @@ describe("format", () => {
     expect(initials("")).toBe("?");
   });
 });
+
+describe("Kyiv day boundaries", () => {
+  it("finds midnight in Kyiv in summer and winter time", async () => {
+    const { kyivDayStart, addDays, kyivPlainDate } = await import("./format");
+    expect(kyivDayStart("2026-09-29").toISOString()).toBe("2026-09-28T21:00:00.000Z");
+    expect(kyivDayStart("2026-01-15").toISOString()).toBe("2026-01-14T22:00:00.000Z");
+    expect(addDays("2026-03-01", -1)).toBe("2026-02-28");
+    expect(kyivPlainDate("2026-09-28T21:30:00Z")).toBe("2026-09-29");
+  });
+});

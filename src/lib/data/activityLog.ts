@@ -20,6 +20,7 @@ export function buildLogDetails(
   oldRow: Record<string, unknown> | null,
   newRow: Record<string, unknown> | null,
   reason?: string | null,
+  meta?: ActivityDetails["meta"],
 ): ActivityDetails | null {
   let details: ActivityDetails;
   if (op === "UPDATE") {
@@ -38,5 +39,6 @@ export function buildLogDetails(
     details = { row: snapshot((op === "INSERT" ? newRow : oldRow) ?? {}) };
   }
   if (reason) details.reason = reason;
+  if (meta) details.meta = meta;
   return details;
 }

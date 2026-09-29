@@ -365,6 +365,27 @@ describe("functions and log triggers", () => {
     ]);
   });
 
+  it("log rows carry meta with the entity's identifying context", async () => {
+    const c = await one<{ id: string }>("select id from public.contracts where deleted_at is null limit 1");
+    await db.query("select public.set_contract_status($1, 'closed')", [c.id]);
+    const log = await one<{ details: { meta: { title: string } } }>(
+      "select details from public.activity_log where entity_id = $1 order by occurred_at desc, tx_id desc limit 1",
+      [c.id],
+    );
+    const title = (await one<{ title: string }>("select title from public.contracts where id = $1", [c.id])).title;
+    expect(log.details.meta).toEqual({ title });
+
+    const v = await one<ProfileVersionRow & { date_text: string }>(
+      "select *, update_date::text as date_text from public.profile_versions where is_current limit 1",
+    );
+    await db.query("select public.apply_daily_change($1, 'title', '{\"value\": \"Meta test\"}', $2)", [v.id, v.updated_at]);
+    const vlog = await one<{ details: { meta: { update_date: string } } }>(
+      "select details from public.activity_log where entity_id = $1 order by occurred_at desc, tx_id desc limit 1",
+      [v.id],
+    );
+    expect(vlog.details.meta.update_date).toBe(v.date_text);
+  });
+
   it("direct edits without context get a generic action", async () => {
     const p = await one<{ id: string }>("select id from public.profiles limit 1");
     await db.query("update public.profiles set address = 'Пряма правка' where id = $1", [p.id]);
