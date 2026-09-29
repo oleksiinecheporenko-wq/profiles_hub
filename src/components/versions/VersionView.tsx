@@ -184,8 +184,18 @@ export function VersionContentSections({
 }
 
 /** Item titles by id across all collections, for naming items in reorder records. */
-export function itemTitleMap(version: ProfileVersion): Record<string, string> {
+export function itemTitleMap(version: ProfileVersion, changes: DailyChange[] = []): Record<string, string> {
   const out: Record<string, string> = {};
+  // Items removed later are known only from their change records.
+  for (const c of changes) {
+    if (!(c.field in COLLECTION_META)) continue;
+    const meta = COLLECTION_META[c.field as CollectionField];
+    for (const v of [c.oldValue, c.newValue]) {
+      if (v && typeof v === "object" && !Array.isArray(v) && "id" in v) {
+        out[(v as { id: string }).id] = meta.summary(v as never);
+      }
+    }
+  }
   for (const field of Object.keys(COLLECTION_META) as CollectionField[]) {
     for (const item of version.content[field]) out[item.id] = COLLECTION_META[field].summary(item);
   }
@@ -206,7 +216,7 @@ export function VersionView({
   /** Link back to the current version; only for archived versions. */
   currentHref: string | null;
 }) {
-  const titles = itemTitleMap(version);
+  const titles = itemTitleMap(version, changes);
   return (
     <div className="min-w-0">
       <div className="flex items-end justify-between gap-4 pb-3">

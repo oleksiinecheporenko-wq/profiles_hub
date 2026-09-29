@@ -1,5 +1,6 @@
 // Display metadata for version fields and collection items (labels from Part B).
 
+import { formatPlainDate, formatPrice } from "@/lib/format";
 import type { CollectionField, CollectionItem, DailyChangeField, Uuid } from "./types";
 
 export const FIELD_LABELS: Record<DailyChangeField | "additional_info" | "update_date", string> = {
@@ -104,4 +105,22 @@ export const COLLECTION_META: Record<CollectionField, CollectionMeta> = {
 
 export function itemFieldLabel(field: CollectionField, key: string): string {
   return COLLECTION_META[field].fields.find((f) => f.key === key)?.label ?? key;
+}
+
+/** Secondary line of an item: price, issuer and date, employment period or link. */
+export function itemMetaLine(field: CollectionField, item: CollectionItem): string | null {
+  const i = item as Record<string, unknown>;
+  switch (field) {
+    case "project_catalog":
+      return typeof i.price === "number" ? formatPrice(i.price) : null;
+    case "certifications":
+      return [i.issuer, typeof i.date === "string" ? formatPlainDate(i.date) : null].filter(Boolean).join(" · ") || null;
+    case "employment_history": {
+      const from = typeof i.date_from === "string" ? formatPlainDate(i.date_from) : "—";
+      const to = typeof i.date_to === "string" ? formatPlainDate(i.date_to) : "по теперішній час";
+      return `${from} — ${to}`;
+    }
+    default:
+      return typeof i.url === "string" ? i.url : null;
+  }
 }

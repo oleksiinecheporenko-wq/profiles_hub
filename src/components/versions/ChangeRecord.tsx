@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
-import { COLLECTION_META, FIELD_LABELS, itemFieldLabel } from "@/lib/domain/collections";
+import { COLLECTION_META, FIELD_LABELS, itemFieldLabel, itemMetaLine } from "@/lib/domain/collections";
 import { jsonEqual } from "@/lib/domain/dailyChanges";
 import { COLLECTION_FIELDS, type CollectionField, type CollectionItem, type DailyChange } from "@/lib/domain/types";
 import { formatDate, formatPlainDate, formatPrice, formatRate, formatTime } from "@/lib/format";
@@ -135,9 +135,11 @@ function ItemDiff({ field, oldItem, newItem }: { field: CollectionField; oldItem
 function ItemSummary({ field, item }: { field: CollectionField; item: CollectionItem }) {
   const meta = COLLECTION_META[field];
   const description = (item as { description?: string | null }).description;
+  const line = itemMetaLine(field, item);
   return (
     <div>
       <p className="font-medium">{meta.summary(item)}</p>
+      {line && <p className="font-mono text-xs text-fg-muted">{line}</p>}
       {description && (
         <div className="text-fg-2">
           <ClampedText text={description} />

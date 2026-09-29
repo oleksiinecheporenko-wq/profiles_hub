@@ -9,9 +9,8 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { controlClassName } from "@/components/ui/Input";
 import { SortableList } from "@/components/ui/SortableList";
 import { useToast } from "@/components/ui/Toast";
-import { COLLECTION_META, type ItemFieldMeta } from "@/lib/domain/collections";
+import { COLLECTION_META, itemMetaLine, type ItemFieldMeta } from "@/lib/domain/collections";
 import type { CollectionField, CollectionItem } from "@/lib/domain/types";
-import { formatPlainDate, formatPrice } from "@/lib/format";
 import { IMAGE_ACCEPT, precheckImage } from "@/lib/upload";
 
 type Props = {
@@ -128,7 +127,7 @@ function ImageField({
   );
 }
 
-function ItemFieldControl({
+export function ItemFieldControl({
   meta,
   item,
   error,
@@ -220,22 +219,6 @@ function ItemFieldControl({
   );
 }
 
-function itemMetaLine(field: CollectionField, item: CollectionItem): string | null {
-  const i = item as Record<string, unknown>;
-  switch (field) {
-    case "project_catalog":
-      return typeof i.price === "number" ? formatPrice(i.price) : null;
-    case "certifications":
-      return [i.issuer, typeof i.date === "string" ? formatPlainDate(i.date) : null].filter(Boolean).join(" · ") || null;
-    case "employment_history": {
-      const from = typeof i.date_from === "string" ? formatPlainDate(i.date_from) : "—";
-      const to = typeof i.date_to === "string" ? formatPlainDate(i.date_to) : "по теперішній час";
-      return `${from} — ${to}`;
-    }
-    default:
-      return typeof i.url === "string" ? i.url : null;
-  }
-}
 
 /** Compact, reorderable list of collection items with inline add/edit/delete. */
 export function CollectionEditor({ field, items, onChange, errors, imageUrls, onImageUploaded }: Props) {

@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { failure, invalid, ok, type ActionResult } from "@/lib/actions/result";
 import { getRepository } from "@/lib/data";
-import type { Timestamp } from "@/lib/domain/types";
+import type { Timestamp, VersionContent } from "@/lib/domain/types";
 import { readImage } from "@/lib/upload";
 import { uuid } from "@/lib/validation/common";
-import { versionPayloadSchema } from "@/lib/validation/version";
+import { dailyChangeSchema, versionPayloadSchema } from "@/lib/validation/version";
 
 function revalidateProfile(profileId: string) {
   revalidatePath(`/profiles/${profileId}`);
@@ -69,6 +69,34 @@ export async function uploadPortfolioImageAction(form: FormData): Promise<Action
     const path = await repo.uploadImage("portfolio-images", image.upload);
     const urls = await repo.signedImageUrls("portfolio-images", [path]);
     return ok({ path, url: urls[path] ?? null });
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * One daily change on the current version (any field, collections item by item).
+ * Returns the version's new content and `updated_at` for the next edit.
+ */
+export async function applyDailyChangeAction(
+  target: { profileId: string; versionId: string; expectedUpdatedAt: Timestamp },
+  change: unknown,
+): Promise<ActionResult<{ updatedAt: Timestamp; content: VersionContent }>> {
+  const profileId = uuid.safeParse(target.profileId);
+  const versionId = uuid.safeParse(target.versionId);
+  if (!profileId.success) return invalid(profileId.error);
+  if (!versionId.success) return invalid(versionId.error);
+  const parsed = dailyChangeSchema.safeParse(change);
+  if (!parsed.success) return invalid(parsed.error);
+  try {
+    const repo = await getRepository();
+    const existing = await repo.getVersion(versionId.data);
+    if (!existing || existing.profileId !== profileId.data) {
+      return { ok: false, error: "Версію не знайдено.", code: "not_found" };
+    }
+    const updated = await repo.applyDailyChange(versionId.data, parsed.data, target.expectedUpdatedAt);
+    revalidateProfile(profileId.data);
+    return ok({ updatedAt: updated.updatedAt, content: updated.content });
   } catch (error) {
     return failure(error);
   }

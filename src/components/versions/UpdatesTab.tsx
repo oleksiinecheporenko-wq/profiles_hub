@@ -1,13 +1,16 @@
 import { GitCompareArrows, History, Layers } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import type { Repository } from "@/lib/data/repository";
 import type { ProfileVersion } from "@/lib/domain/types";
 import { draftFromVersion } from "@/lib/domain/versions";
-import { todayPlainDate } from "@/lib/format";
+import { formatPlainDate, todayPlainDate } from "@/lib/format";
+import { ChangeRecord } from "./ChangeRecord";
+import { DailyUpdatesEditor } from "./DailyUpdatesEditor";
 import { VersionForm } from "./VersionForm";
 import { VersionRail } from "./VersionRail";
-import { VersionView } from "./VersionView";
+import { itemTitleMap, VersionView } from "./VersionView";
 
 export const UPDATE_SUBTABS = [
   { key: "global", label: "Глобальне оновлення" },
@@ -54,11 +57,48 @@ export async function UpdatesTab({
   );
 
   if (sub === "daily") {
-    // TODO(phase 6): daily updates editor and history.
+    const current = await repo.getCurrentVersion(profileId);
+    if (!current) {
+      return (
+        <>
+          {nav}
+          <EmptyState icon={Layers} message="У профілю ще немає Актуальної версії." />
+        </>
+      );
+    }
+    const [changes, imageUrls] = await Promise.all([
+      repo.listDailyChanges(current.id),
+      portfolioImageUrls(repo, [current]),
+    ]);
+    const titles = itemTitleMap(current, changes);
     return (
       <>
         {nav}
-        <EmptyState icon={History} message="Щоденні оновлення ще недоступні." />
+        <p className="mb-4 text-sm text-fg-2">
+          Зміни вносяться в{" "}
+          <Link href={base} scroll={false} className="text-fg underline decoration-line-strong underline-offset-4 hover:decoration-accent">
+            Актуальну версію
+          </Link>{" "}
+          від <span className="font-mono text-fg">{formatPlainDate(current.updateDate)}</span>
+        </p>
+        <div className="grid grid-cols-[minmax(0,64fr)_minmax(280px,36fr)] items-start gap-8">
+          <DailyUpdatesEditor key={current.id} profileId={profileId} version={current} imageUrls={imageUrls} />
+          <aside aria-labelledby="daily-history-heading" className="sticky top-6 flex max-h-[calc(100vh-3rem)] flex-col self-start">
+            <div className="flex items-center justify-between pb-2">
+              <h3 id="daily-history-heading" className="font-mono text-xs text-fg-muted">
+                {"// change history"}
+              </h3>
+              <span className="font-mono text-xs text-fg-muted">{changes.length}</span>
+            </div>
+            <div className="min-h-0 overflow-y-auto rounded-lg border border-line bg-surface-1/40 px-4">
+              {changes.length === 0 ? (
+                <EmptyState icon={History} message="Змін у цій версії ще немає." className="my-4 border-0" />
+              ) : (
+                changes.map((c) => <ChangeRecord key={c.id} change={c} itemTitles={titles} />)
+              )}
+            </div>
+          </aside>
+        </div>
       </>
     );
   }
