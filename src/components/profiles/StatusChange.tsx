@@ -121,7 +121,7 @@ export function StatusBadgeMenu({ profile, size = "md" }: { profile: Target; siz
         }))}
         triggerLabel={`Статус: ${PROFILE_STATUS_LABELS[profile.status]}. Змінити`}
         triggerClassName={clsx(
-          "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line px-2.5 font-medium transition-colors",
+          "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line px-2.5 font-medium whitespace-nowrap transition-colors",
           "hover:border-line-strong",
           tone.soft,
           tone.text,
