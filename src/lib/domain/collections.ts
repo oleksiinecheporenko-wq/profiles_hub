@@ -1,0 +1,107 @@
+// Display metadata for version fields and collection items (labels from Part B).
+
+import type { CollectionField, CollectionItem, DailyChangeField, Uuid } from "./types";
+
+export const FIELD_LABELS: Record<DailyChangeField | "additional_info" | "update_date", string> = {
+  update_date: "Дата оновлення",
+  title: "Title",
+  rate: "Rate",
+  description: "Description",
+  skills: "Skills",
+  portfolio: "Portfolio",
+  project_catalog: "Project Catalog",
+  certifications: "Certifications",
+  employment_history: "Employment history",
+  other_experiences: "Other experiences",
+  additional_info: "Додаткова інформація",
+};
+
+export type ItemFieldKind = "text" | "textarea" | "url" | "money" | "date" | "image";
+
+export type ItemFieldMeta = {
+  key: string;
+  label: string;
+  kind: ItemFieldKind;
+  required?: boolean;
+};
+
+export type CollectionMeta = {
+  label: string;
+  /** Singular noun for buttons: `Додати …`. */
+  itemNoun: string;
+  fields: ItemFieldMeta[];
+  newItem: (id: Uuid) => CollectionItem;
+  /** One-line name of an item. */
+  summary: (item: CollectionItem) => string;
+};
+
+const text = (v: unknown) => (typeof v === "string" ? v : "");
+
+export const COLLECTION_META: Record<CollectionField, CollectionMeta> = {
+  portfolio: {
+    label: "Portfolio",
+    itemNoun: "проєкт",
+    fields: [
+      { key: "title", label: "Назва", kind: "text", required: true },
+      { key: "description", label: "Опис", kind: "textarea" },
+      { key: "url", label: "Посилання", kind: "url" },
+      { key: "image_path", label: "Зображення", kind: "image" },
+    ],
+    newItem: (id) => ({ id, title: "", description: null, url: null, image_path: null }),
+    summary: (i) => text((i as { title?: string }).title) || "Без назви",
+  },
+  project_catalog: {
+    label: "Project Catalog",
+    itemNoun: "пропозицію",
+    fields: [
+      { key: "title", label: "Назва", kind: "text", required: true },
+      { key: "description", label: "Опис", kind: "textarea" },
+      { key: "price", label: "Ціна", kind: "money" },
+      { key: "url", label: "Посилання", kind: "url" },
+    ],
+    newItem: (id) => ({ id, title: "", description: null, price: null, url: null }),
+    summary: (i) => text((i as { title?: string }).title) || "Без назви",
+  },
+  certifications: {
+    label: "Certifications",
+    itemNoun: "сертифікат",
+    fields: [
+      { key: "title", label: "Назва", kind: "text", required: true },
+      { key: "issuer", label: "Ким видано", kind: "text" },
+      { key: "date", label: "Дата", kind: "date" },
+      { key: "url", label: "Посилання", kind: "url" },
+    ],
+    newItem: (id) => ({ id, title: "", issuer: null, date: null, url: null }),
+    summary: (i) => text((i as { title?: string }).title) || "Без назви",
+  },
+  employment_history: {
+    label: "Employment history",
+    itemNoun: "місце роботи",
+    fields: [
+      { key: "company", label: "Компанія", kind: "text", required: true },
+      { key: "position", label: "Посада", kind: "text" },
+      { key: "date_from", label: "Дата початку", kind: "date" },
+      { key: "date_to", label: "Дата завершення", kind: "date" },
+      { key: "description", label: "Опис", kind: "textarea" },
+    ],
+    newItem: (id) => ({ id, company: "", position: null, date_from: null, date_to: null, description: null }),
+    summary: (i) => {
+      const e = i as { company?: string; position?: string | null };
+      return [text(e.company) || "Без назви", e.position].filter(Boolean).join(" · ");
+    },
+  },
+  other_experiences: {
+    label: "Other experiences",
+    itemNoun: "досвід",
+    fields: [
+      { key: "title", label: "Назва", kind: "text", required: true },
+      { key: "description", label: "Опис", kind: "textarea" },
+    ],
+    newItem: (id) => ({ id, title: "", description: null }),
+    summary: (i) => text((i as { title?: string }).title) || "Без назви",
+  },
+};
+
+export function itemFieldLabel(field: CollectionField, key: string): string {
+  return COLLECTION_META[field].fields.find((f) => f.key === key)?.label ?? key;
+}

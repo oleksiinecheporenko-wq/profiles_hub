@@ -5,6 +5,7 @@ import { MainInfoTab } from "@/components/profiles/MainInfoTab";
 import { ProfileHeader } from "@/components/profiles/ProfileHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
+import { UPDATE_SUBTABS, UpdatesTab, type UpdatesSubtab } from "@/components/versions/UpdatesTab";
 import { getRequestRepository } from "@/lib/data";
 import { profilePhotoUrls } from "@/lib/data/images";
 
@@ -38,15 +39,17 @@ export async function generateMetadata(props: PageProps<"/profiles/[id]">): Prom
   return { title: detail?.profile.fullName ?? "Профіль" };
 }
 
-// TODO(phase 5–7, 9, 10): `Оновлення`, `Журнал дій`, `Контракти` tabs.
+// TODO(phase 9, 10): `Журнал дій`, `Контракти` tabs.
 export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
   const { id } = await props.params;
-  const { tab: tabParam } = await props.searchParams;
+  const { tab: tabParam, sub: subParam, version: versionParam, mode: modeParam } = await props.searchParams;
   const data = await load(id);
   if (!data) notFound();
 
   const { profile, languages, current, photoUrl } = data;
   const tab = TABS.find((t) => t.key === tabParam)?.key ?? "main";
+  const sub: UpdatesSubtab = UPDATE_SUBTABS.find((t) => t.key === subParam)?.key ?? "global";
+  const mode = modeParam === "new" || modeParam === "edit" ? modeParam : "view";
 
   return (
     <>
@@ -72,6 +75,14 @@ export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
                 description: current.content.description,
               }
             }
+          />
+        ) : tab === "updates" ? (
+          <UpdatesTab
+            repo={await getRequestRepository()}
+            profileId={id}
+            sub={sub}
+            versionParam={typeof versionParam === "string" ? versionParam : undefined}
+            mode={mode}
           />
         ) : (
           <EmptyState icon={LayoutPanelTop} message="Вміст цієї вкладки ще недоступний." />
