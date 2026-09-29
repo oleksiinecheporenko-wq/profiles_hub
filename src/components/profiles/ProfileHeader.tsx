@@ -13,7 +13,16 @@ import { formatDateTime } from "@/lib/format";
 import { IMAGE_ACCEPT, precheckImage } from "@/lib/upload";
 import { StatusBadgeMenu } from "./StatusChange";
 
-export function ProfileHeader({ profile, photoUrl }: { profile: ProfileOverview; photoUrl?: string }) {
+/** `compact`: smaller header for `Порівняння`, keeping the name, status and navigation. */
+export function ProfileHeader({
+  profile,
+  photoUrl,
+  compact = false,
+}: {
+  profile: ProfileOverview;
+  photoUrl?: string;
+  compact?: boolean;
+}) {
   const router = useRouter();
   const toast = useToast();
   const input = useRef<HTMLInputElement>(null);
@@ -38,6 +47,31 @@ export function ProfileHeader({ profile, photoUrl }: { profile: ProfileOverview;
       router.refresh();
     });
   };
+
+  if (compact) {
+    return (
+      <header className="flex items-center justify-between gap-4 pb-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/profiles"
+            aria-label="До списку профілів"
+            title="Профілі"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg-2 transition-colors hover:bg-surface-hover hover:text-fg"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+          </Link>
+          <ProfileAvatar name={profile.fullName} src={photoUrl} size={28} />
+          <h1 className="truncate text-base font-semibold" title={profile.fullName}>
+            {profile.fullName}
+          </h1>
+          <span className="truncate text-[13px] text-fg-muted" title={profile.title ?? undefined}>
+            {profile.title}
+          </span>
+        </div>
+        <StatusBadgeMenu profile={profile} size="sm" />
+      </header>
+    );
+  }
 
   return (
     <>

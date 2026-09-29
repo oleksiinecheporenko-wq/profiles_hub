@@ -1,12 +1,17 @@
 import { GitCompareArrows, History, Layers } from "lucide-react";
 import Link from "next/link";
+import { AutoCollapseSidebar } from "@/components/shell/SidebarProvider";
+import { buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import type { Repository } from "@/lib/data/repository";
+import { compareVersions, onlyDifferences } from "@/lib/domain/diff";
 import type { ProfileVersion } from "@/lib/domain/types";
 import { draftFromVersion } from "@/lib/domain/versions";
 import { formatPlainDate, todayPlainDate } from "@/lib/format";
 import { ChangeRecord } from "./ChangeRecord";
+import { ComparisonRows } from "./Comparison";
+import { ComparisonToolbar } from "./ComparisonToolbar";
 import { DailyUpdatesEditor } from "./DailyUpdatesEditor";
 import { VersionForm } from "./VersionForm";
 import { VersionRail } from "./VersionRail";
@@ -36,8 +41,10 @@ export async function UpdatesTab({
   sub,
   versionParam,
   mode,
+  compare,
 }: {
   repo: Repository;
+  compare?: { left?: string; right?: string; onlyDiff: boolean };
   profileId: string;
   sub: UpdatesSubtab;
   versionParam: string | undefined;
@@ -103,11 +110,75 @@ export async function UpdatesTab({
     );
   }
   if (sub === "compare") {
-    // TODO(phase 7): side-by-side comparison.
+    const versions = await repo.listVersions(profileId);
+    const auto = <AutoCollapseSidebar />;
+    if (versions.length < 2) {
+      return (
+        <>
+          {auto}
+          {nav}
+          <EmptyState
+            icon={GitCompareArrows}
+            message="Для порівняння потрібні щонайменше дві версії."
+            action={
+              <Link href={`${base}&mode=new`} className={buttonClassName("primary", "sm")}>
+                Нове оновлення
+              </Link>
+            }
+          />
+        </>
+      );
+    }
+    const ids = new Set(versions.map((v) => v.id));
+    const currentId = versions.find((v) => v.isCurrent)?.id ?? versions[0].id;
+    const previousId = versions.find((v) => v.id !== currentId)!.id;
+    const leftId = compare?.left && ids.has(compare.left) ? compare.left : previousId;
+    const rightId = compare?.right && ids.has(compare.right) ? compare.right : currentId;
+    const [left, right] = await Promise.all([repo.getVersion(leftId), repo.getVersion(rightId)]);
+    if (!left || !right) {
+      return (
+        <>
+          {auto}
+          {nav}
+          <EmptyState icon={GitCompareArrows} message="Версію не знайдено." />
+        </>
+      );
+    }
+    const all = compareVersions(left.content, right.content);
+    const rows = compare?.onlyDiff ? onlyDifferences(all) : all;
+    const changedCount = all.filter((r) => r.changed).length;
+    const label = (v: ProfileVersion) => (
+      <span className="flex items-center gap-2">
+        <span className="font-mono text-fg">{formatPlainDate(v.updateDate)}</span>
+        {v.isCurrent ? (
+          <span className="rounded-sm bg-accent-soft px-1.5 font-mono text-[10px] tracking-wide text-accent uppercase">актуальна</span>
+        ) : (
+          <span className="rounded-sm bg-neutral-soft px-1.5 font-mono text-[10px] tracking-wide text-fg-muted uppercase">архів</span>
+        )}
+      </span>
+    );
     return (
       <>
+        {auto}
         {nav}
-        <EmptyState icon={GitCompareArrows} message="Порівняння ще недоступне." />
+        <ComparisonToolbar versions={versions} left={left.id} right={right.id} onlyDiff={!!compare?.onlyDiff} />
+        {left.id === right.id && (
+          <p className="mb-3 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-[13px] text-warning">
+            Ліворуч і праворуч обрано ту саму версію — відмінностей не буде. Оберіть іншу версію або поміняйте місцями.
+          </p>
+        )}
+        <div className="grid grid-cols-[132px_minmax(0,1fr)] gap-x-5 px-4 pb-2 pl-[14px] text-[13px] text-fg-muted">
+          <span className="font-mono text-[11px] uppercase">{changedCount} змінено</span>
+          <div className="grid grid-cols-2 gap-x-6">
+            {label(left)}
+            {label(right)}
+          </div>
+        </div>
+        {rows.length === 0 ? (
+          <EmptyState icon={GitCompareArrows} message="Відмінностей між цими версіями немає." />
+        ) : (
+          <ComparisonRows rows={rows} />
+        )}
       </>
     );
   }

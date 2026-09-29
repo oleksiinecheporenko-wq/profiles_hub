@@ -42,7 +42,9 @@ export async function generateMetadata(props: PageProps<"/profiles/[id]">): Prom
 // TODO(phase 9, 10): `Журнал дій`, `Контракти` tabs.
 export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
   const { id } = await props.params;
-  const { tab: tabParam, sub: subParam, version: versionParam, mode: modeParam } = await props.searchParams;
+  const sp = await props.searchParams;
+  const { tab: tabParam, sub: subParam, version: versionParam, mode: modeParam } = sp;
+  const str = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
   const data = await load(id);
   if (!data) notFound();
 
@@ -53,7 +55,7 @@ export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
 
   return (
     <>
-      <ProfileHeader profile={profile} photoUrl={photoUrl} />
+      <ProfileHeader profile={profile} photoUrl={photoUrl} compact={tab === "updates" && sub === "compare"} />
 
       <Tabs
         label="Розділи профілю"
@@ -83,6 +85,7 @@ export default async function ProfilePage(props: PageProps<"/profiles/[id]">) {
             sub={sub}
             versionParam={typeof versionParam === "string" ? versionParam : undefined}
             mode={mode}
+            compare={{ left: str(sp.left), right: str(sp.right), onlyDiff: sp.diff === "1" }}
           />
         ) : (
           <EmptyState icon={LayoutPanelTop} message="Вміст цієї вкладки ще недоступний." />
