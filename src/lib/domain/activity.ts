@@ -267,8 +267,11 @@ export function summarizeEntry(entry: ActivityEntry): string {
     }
     case "profile.languages_updated":
       return "Оновлено мови профілю";
-    case "profile.deleted":
-      return `Видалено профіль ${quoteName(entry.rows[0]?.details.meta?.full_name ?? (entry.rows[0]?.details.row?.full_name as string))}`;
+    case "profile.deleted": {
+      // The transaction also removes versions, contracts, …; the name comes from the profile row.
+      const row = entry.rows.find((r) => r.entityType === "profile");
+      return `Видалено профіль ${quoteName(row?.details.meta?.full_name ?? (row?.details.row?.full_name as string) ?? entry.profile?.fullName)}`;
+    }
     case "version.created":
       return `Створено глобальне оновлення від ${versionDate(entry) ?? "—"}`;
     case "version.edited": {

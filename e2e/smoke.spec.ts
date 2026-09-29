@@ -77,3 +77,27 @@ test("main flow: profile → daily change → global update → comparison → s
   const body = await response.body();
   expect(body.subarray(0, 2).toString()).toBe("PK");
 });
+
+test("delete a profile permanently with typed confirmation", async ({ page }) => {
+  const name = `Видалення Тестове ${Date.now()}`;
+  await page.goto("/profiles");
+  await page.getByRole("button", { name: "Додати профіль" }).click();
+  await page.getByRole("dialog").getByLabel("ПІБ").fill(name);
+  await page.getByRole("dialog").getByRole("button", { name: "Створити" }).click();
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+
+  await page.getByRole("button", { name: "Інші дії з профілем" }).click();
+  await page.getByRole("menuitem", { name: "Видалити профіль" }).click();
+  const dialog = page.getByRole("dialog");
+  const confirm = dialog.getByRole("button", { name: "Видалити назавжди" });
+  await expect(confirm).toBeDisabled();
+  await dialog.getByLabel("Щоб підтвердити, введіть ПІБ профілю").fill(name);
+  await confirm.click();
+
+  await expect(page).toHaveURL(/\/profiles$/);
+  await expect(page.getByText(`Профіль «${name}» видалено.`)).toBeVisible();
+  await expect(page.getByRole("link", { name })).toHaveCount(0);
+
+  await page.goto("/actions");
+  await expect(page.getByText(`Видалено профіль «${name}»`)).toBeVisible();
+});

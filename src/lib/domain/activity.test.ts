@@ -62,6 +62,12 @@ describe("activity summaries", () => {
     ]);
   });
 
+  it("names a deleted profile from its own row", async () => {
+    await repo.deleteProfile(OSTAP);
+    const [entry] = (await repo.listActivity({ limit: 1 })).entries;
+    expect(summarizeEntry(entry)).toBe("Видалено профіль «Остап Вигаданий»");
+  });
+
   it("maps actions to filter groups", () => {
     expect(actionGroup("profile.status_changed")).toBe("status");
     expect(actionGroup("version.daily_change")).toBe("updates");

@@ -386,6 +386,36 @@ describe("functions and log triggers", () => {
     expect(vlog.details.meta.update_date).toBe(v.date_text);
   });
 
+  it("delete_profile removes everything in one logged transaction", async () => {
+    const p = await one<{ id: string; full_name: string }>(
+      "select id, full_name from public.profiles where full_name = 'Соломія-Олександра Демченко-Прикладна'",
+    );
+    const result = await one<{ delete_profile: { full_name: string; portfolio_images: string[] } }>(
+      "select public.delete_profile($1)",
+      [p.id],
+    );
+    expect(result.delete_profile.full_name).toBe(p.full_name);
+
+    const left = await one<Record<string, number>>(
+      `select
+        (select count(*)::int from public.profiles where id = $1) as profiles,
+        (select count(*)::int from public.profile_versions where profile_id = $1) as versions,
+        (select count(*)::int from public.daily_changes where profile_id = $1) as daily,
+        (select count(*)::int from public.contracts where profile_id = $1) as contracts`,
+      [p.id],
+    );
+    expect(left).toEqual({ profiles: 0, versions: 0, daily: 0, contracts: 0 });
+
+    const tx = await all<{ action: string; entity_type: string }>(
+      "select action, entity_type from public.activity_log where tx_id = (select tx_id from public.activity_log where entity_id = $1 and action = 'profile.deleted' and entity_type = 'profile')",
+      [p.id],
+    );
+    expect(new Set(tx.map((r) => r.action))).toEqual(new Set(["profile.deleted"]));
+    expect(tx.map((r) => r.entity_type)).toEqual(expect.arrayContaining(["profile", "version", "contract"]));
+
+    expect(await errorCode("select public.delete_profile($1)", [p.id])).toBe("UP404");
+  });
+
   it("direct edits without context get a generic action", async () => {
     const p = await one<{ id: string }>("select id from public.profiles limit 1");
     await db.query("update public.profiles set address = 'Пряма правка' where id = $1", [p.id]);

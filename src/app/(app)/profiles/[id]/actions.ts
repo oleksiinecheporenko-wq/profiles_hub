@@ -128,3 +128,35 @@ export async function uploadProfilePhotoAction(profileId: string, form: FormData
     return failure(error);
   }
 }
+
+/**
+ * Permanent deletion. The typed name must match the profile's full name (checked
+ * here too, not only in the dialog). Stored images are removed afterwards; a storage
+ * failure does not undo the deletion.
+ */
+export async function deleteProfileAction(profileId: string, confirmName: string): Promise<ActionResult<{ fullName: string }>> {
+  const id = uuid.safeParse(profileId);
+  if (!id.success) return invalid(id.error);
+  try {
+    const repo = await getRepository();
+    const detail = await repo.getProfile(id.data);
+    if (!detail) return { ok: false, error: "Профіль не знайдено.", code: "not_found" };
+    if (confirmName.trim() !== detail.profile.fullName.trim()) {
+      return { ok: false, error: "ПІБ не збігається.", code: "invalid", fieldErrors: { confirm: "ПІБ не збігається." } };
+    }
+
+    const deleted = await repo.deleteProfile(id.data);
+    try {
+      if (deleted.photoPath) await repo.removeImages("profile-photos", [deleted.photoPath]);
+      if (deleted.portfolioImages.length) await repo.removeImages("portfolio-images", deleted.portfolioImages);
+    } catch (error) {
+      console.error("[deleteProfile] storage cleanup failed", error);
+    }
+
+    revalidateProfile(id.data);
+    revalidatePath("/contracts");
+    return ok({ fullName: deleted.fullName });
+  } catch (error) {
+    return failure(error);
+  }
+}

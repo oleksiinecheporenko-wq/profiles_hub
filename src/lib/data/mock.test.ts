@@ -145,6 +145,24 @@ describe("MockRepository", () => {
     expect(actions).toEqual(["contract.reopened", "contract.closed"]);
   });
 
+  it("deletes a profile with everything attached and logs one entry", async () => {
+    const [contract] = await repo.listContracts();
+    const profileId = contract.profileId;
+    const detail = (await repo.getProfile(profileId))!;
+    const deleted = await repo.deleteProfile(profileId);
+    expect(deleted.fullName).toBe(detail.profile.fullName);
+    expect(await repo.getProfile(profileId)).toBeNull();
+    expect(await repo.listVersions(profileId)).toEqual([]);
+    expect((await repo.listContracts()).some((c) => c.profileId === profileId)).toBe(false);
+    expect(repo.state.dailyChanges.some((d) => d.profileId === profileId)).toBe(false);
+
+    const [entry] = (await repo.listActivity({ limit: 1 })).entries;
+    expect(entry.action).toBe("profile.deleted");
+    expect(entry.profile).toBeNull();
+    expect(new Set(entry.rows.map((r) => r.action))).toEqual(new Set(["profile.deleted"]));
+    await expect(repo.deleteProfile(profileId)).rejects.toMatchObject({ code: "not_found" });
+  });
+
   it("paginates activity by cursor without gaps or repeats", async () => {
     const all = (await repo.listActivity({ limit: 1000 })).entries;
     const seen: number[] = [];

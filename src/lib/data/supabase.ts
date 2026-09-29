@@ -31,6 +31,7 @@ import type {
   ActivityPage,
   ActivityQuery,
   ContractQuery,
+  DeletedProfile,
   ImageUpload,
   ProfileDetail,
   Repository,
@@ -219,6 +220,19 @@ export class SupabaseRepository implements Repository {
       }),
     ) as ProfileRow;
     return profileFromRow(row);
+  }
+
+  async deleteProfile(id: Uuid): Promise<DeletedProfile> {
+    const data = unwrap(await this.db.rpc("delete_profile", { p_profile_id: id })) as {
+      full_name: string;
+      photo_path: string | null;
+      portfolio_images: string[] | null;
+    };
+    return {
+      fullName: data.full_name,
+      photoPath: data.photo_path,
+      portfolioImages: data.portfolio_images ?? [],
+    };
   }
 
   // ---- versions -----------------------------------------------------------
@@ -449,6 +463,13 @@ export class SupabaseRepository implements Repository {
       .upload(path, upload.bytes, { contentType: upload.contentType, upsert: false });
     if (error) fail({ message: error.message });
     return path;
+  }
+
+  async removeImages(bucket: StorageBucket, paths: string[]): Promise<void> {
+    const unique = [...new Set(paths.filter(Boolean))];
+    if (unique.length === 0) return;
+    const { error } = await this.db.storage.from(bucket).remove(unique);
+    if (error) fail({ message: error.message });
   }
 
   async signedImageUrls(bucket: StorageBucket, paths: string[]): Promise<Record<string, string>> {

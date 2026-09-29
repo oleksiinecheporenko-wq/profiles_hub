@@ -50,6 +50,13 @@ export type ActivityPage = {
   nextCursor: ActivityCursor | null;
 };
 
+/** What a permanent deletion left in storage, for the caller to clean up. */
+export type DeletedProfile = {
+  fullName: string;
+  photoPath: string | null;
+  portfolioImages: string[];
+};
+
 export type ContractQuery = {
   profileId?: Uuid;
 };
@@ -72,6 +79,8 @@ export interface Repository {
   setProfileLanguages(id: Uuid, languages: LanguageInput[]): Promise<ProfileLanguage[]>;
   /** No-op (returns the profile unchanged) when the status is the same. */
   changeProfileStatus(id: Uuid, status: ProfileStatus, reason: string | null): Promise<Profile>;
+  /** Permanent: also removes versions, daily changes, languages, contracts, comments. */
+  deleteProfile(id: Uuid): Promise<DeletedProfile>;
 
   // Versions
   /** Rail order: `update_date desc, created_at desc`. */
@@ -108,6 +117,8 @@ export interface Repository {
   // Storage
   /** Stores the image under a random name and returns its path in the bucket. */
   uploadImage(bucket: StorageBucket, upload: ImageUpload): Promise<string>;
+  /** Removes stored files; missing paths are ignored. */
+  removeImages(bucket: StorageBucket, paths: string[]): Promise<void>;
   /** Signed URLs valid for one hour, keyed by path. Unknown paths are omitted. */
   signedImageUrls(bucket: StorageBucket, paths: string[]): Promise<Record<string, string>>;
 }

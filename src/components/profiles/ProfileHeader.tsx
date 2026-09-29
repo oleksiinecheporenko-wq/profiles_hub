@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { ProfileOverview } from "@/lib/domain/types";
 import { formatDateTime } from "@/lib/format";
 import { IMAGE_ACCEPT, precheckImage } from "@/lib/upload";
+import { ProfileMoreMenu } from "./DeleteProfile";
 import { StatusBadgeMenu } from "./StatusChange";
 
 /** `compact`: smaller header for `Порівняння`, keeping the name, status and navigation. */
@@ -133,7 +134,10 @@ export function ProfileHeader({
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <StatusBadgeMenu profile={profile} />
+          <div className="flex items-center gap-2">
+            <StatusBadgeMenu profile={profile} />
+            <ProfileMoreMenu profile={profile} />
+          </div>
           <p className="font-mono text-xs text-fg-muted">
             Оновлено <time dateTime={profile.lastActivityAt}>{formatDateTime(profile.lastActivityAt)}</time>
           </p>

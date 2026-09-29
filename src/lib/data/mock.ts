@@ -34,6 +34,7 @@ import type {
   ActivityPage,
   ActivityQuery,
   ContractQuery,
+  DeletedProfile,
   ImageUpload,
   ProfileDetail,
   Repository,
@@ -352,6 +353,38 @@ export class MockRepository implements Repository {
     );
   }
 
+  async deleteProfile(id: Uuid): Promise<DeletedProfile> {
+    return this.transact("profile.deleted", (tx) => {
+      const profile = this.profileOrThrow(id);
+      const versions = this.state.versions.filter((v) => v.profileId === id);
+      const portfolioImages = [
+        ...new Set(versions.flatMap((v) => v.content.portfolio.map((p) => p.image_path).filter((p): p is string => !!p))),
+      ];
+      const contracts = this.state.contracts.filter((c) => c.profileId === id);
+      const contractIds = new Set(contracts.map((c) => c.id));
+
+      // Same rows the cascade removes; comments first so their log rows can still find the profile.
+      for (const m of this.state.comments.filter((c) => contractIds.has(c.contractId))) {
+        this.log(tx, "contract_comment", "DELETE", commentToRow(m), null);
+      }
+      for (const c of contracts) this.log(tx, "contract", "DELETE", contractToRow(c, c.deletedAt), null);
+      for (const l of this.state.languages.filter((x) => x.profileId === id)) {
+        this.log(tx, "profile_language", "DELETE", languageToRow(l), null);
+      }
+      for (const v of versions) this.log(tx, "version", "DELETE", versionToRow(v), null);
+      this.log(tx, "profile", "DELETE", profileToRow(profile), null);
+
+      this.state.comments = this.state.comments.filter((c) => !contractIds.has(c.contractId));
+      this.state.contracts = this.state.contracts.filter((c) => c.profileId !== id);
+      this.state.dailyChanges = this.state.dailyChanges.filter((d) => d.profileId !== id);
+      this.state.languages = this.state.languages.filter((l) => l.profileId !== id);
+      this.state.versions = this.state.versions.filter((v) => v.profileId !== id);
+      this.state.profiles = this.state.profiles.filter((p) => p.id !== id);
+
+      return { fullName: profile.fullName, photoPath: profile.photoPath, portfolioImages };
+    });
+  }
+
   // ---- versions -----------------------------------------------------------
 
   async listVersions(profileId: Uuid): Promise<VersionSummary[]> {
@@ -633,6 +666,10 @@ export class MockRepository implements Repository {
     const base64 = Buffer.from(upload.bytes).toString("base64");
     this.state.images[`${bucket}/${path}`] = `data:${upload.contentType};base64,${base64}`;
     return path;
+  }
+
+  async removeImages(bucket: StorageBucket, paths: string[]): Promise<void> {
+    for (const path of paths) delete this.state.images[`${bucket}/${path}`];
   }
 
   async signedImageUrls(bucket: StorageBucket, paths: string[]): Promise<Record<string, string>> {
