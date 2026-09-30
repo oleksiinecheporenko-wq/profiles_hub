@@ -36,8 +36,8 @@ function project(ctx: Ctx, title: string, description: string, price: number): P
   return { id: ctx.id(), title, description, price, url: null };
 }
 
-function cert(ctx: Ctx, title: string, issuer: string, date: string): Certification {
-  return { id: ctx.id(), title, issuer, date, url: null };
+function cert(ctx: Ctx, title: string, issuer: string, from: string, to: string | null, description: string | null): Certification {
+  return { id: ctx.id(), title, issuer, date_from: from, date_to: to, description };
 }
 
 function job(
@@ -133,7 +133,7 @@ async function script(ctx: Ctx) {
       job(ctx, "Умовна Студія", "Frontend Developer", "2021-03-01", null, "Розробка клієнтських вебзастосунків."),
       job(ctx, "Приклад Лабс", "Junior Developer", "2019-06-01", "2021-02-28", "Підтримка внутрішніх сервісів."),
     ],
-    certifications: [cert(ctx, "Web Accessibility Fundamentals", "Умовна Академія", "2022-11-15")],
+    certifications: [cert(ctx, "Web Accessibility Fundamentals", "Умовна Академія", "2022-11-15", "2025-11-15", "Курс з доступності вебінтерфейсів (WCAG 2.1).")],
   }));
   at("2026-05-18T09:12:00.000Z");
   await daily(ctx, ostap.id, { field: "rate", value: 38 });
@@ -224,7 +224,7 @@ async function script(ctx: Ctx) {
     ...c,
     description:
       "Проєктую інтерфейси, які легко зрозуміти з першого екрана.\n\nДослідження, прототипи, UI-кіти, передача макетів у розробку з детальними специфікаціями.",
-    certifications: [cert(ctx, "UX Research Practitioner", "Умовна Школа Дизайну", "2026-07-01")],
+    certifications: [cert(ctx, "UX Research Practitioner", "Умовна Школа Дизайну", "2026-07-01", null, null)],
   }));
   at("2026-08-20T07:50:00.000Z");
   await daily(ctx, marta.id, { field: "rate", value: 36 });

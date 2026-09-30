@@ -57,6 +57,8 @@ export type MockState = {
   comments: ContractComment[];
   activity: ActivityRow[];
   images: Record<string, string>;
+  /** Mirrors `skill_catalog`: every skill ever saved, never pruned. */
+  skillCatalog: string[];
 };
 
 export type MockOptions = {
@@ -76,6 +78,7 @@ export function emptyMockState(): MockState {
     comments: [],
     activity: [],
     images: {},
+    skillCatalog: [],
   };
 }
 
@@ -212,8 +215,22 @@ export class MockRepository implements Repository {
     };
   }
 
+  /** Mirrors the `remember_skills` trigger. */
+  private rememberSkills(skills: string[]) {
+    const known = new Set(this.state.skillCatalog.map((s) => s.trim().toLocaleLowerCase("uk")));
+    for (const raw of skills) {
+      const skill = raw.trim();
+      const key = skill.toLocaleLowerCase("uk");
+      if (skill && !known.has(key)) {
+        this.state.skillCatalog.push(skill);
+        known.add(key);
+      }
+    }
+  }
+
   private updateVersionRow(tx: Tx, before: ProfileVersion, after: ProfileVersion): ProfileVersion {
     const next = { ...after, updatedAt: tx.ts };
+    this.rememberSkills(next.content.skills);
     const i = this.state.versions.findIndex((v) => v.id === before.id);
     this.state.versions[i] = next;
     this.log(tx, "version", "UPDATE", versionToRow(before), versionToRow(next));
@@ -455,6 +472,7 @@ export class MockRepository implements Repository {
         updatedAt: tx.ts,
       };
       this.state.versions.push(version);
+      this.rememberSkills(version.content.skills);
       this.log(tx, "version", "INSERT", null, versionToRow(version));
       return version;
     });
@@ -480,6 +498,10 @@ export class MockRepository implements Repository {
         .filter((d) => d.versionId === versionId)
         .sort((a, b) => (a.changedAt === b.changedAt ? 0 : a.changedAt < b.changedAt ? 1 : -1)),
     );
+  }
+
+  async listSkillSuggestions(): Promise<string[]> {
+    return [...this.state.skillCatalog].sort((a, b) => a.localeCompare(b, "uk"));
   }
 
   // ---- activity -----------------------------------------------------------

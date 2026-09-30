@@ -25,6 +25,8 @@ type Props = {
   profileId: string;
   initial: VersionPayload;
   imageUrls: Record<string, string>;
+  /** Skill catalog for autocomplete. */
+  skillSuggestions: string[];
   /** Updates tab URL; Cancel and a successful save go there (with `&version=`). */
   baseHref: string;
 } & (
@@ -244,7 +246,13 @@ export function VersionForm(props: Props) {
         </Row>
         {collection("portfolio")}
         <Row icon="skills" label="Skills" htmlFor="v-skills" error={errors.skills}>
-          <TagInput id="v-skills" value={content.skills} onChange={(v) => set("skills", v)} max={MAX_SKILLS} />
+          <TagInput
+            id="v-skills"
+            value={content.skills}
+            onChange={(v) => set("skills", v)}
+            max={MAX_SKILLS}
+            suggestions={props.skillSuggestions}
+          />
         </Row>
         {collection("project_catalog")}
         {collection("certifications")}

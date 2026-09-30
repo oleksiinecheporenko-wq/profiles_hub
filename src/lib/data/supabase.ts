@@ -329,6 +329,11 @@ export class SupabaseRepository implements Repository {
     return rows.map(dailyChangeFromRow);
   }
 
+  async listSkillSuggestions(): Promise<string[]> {
+    const rows = unwrap(await this.db.from("skill_catalog").select("name").order("name")) as { name: string }[];
+    return rows.map((r) => r.name);
+  }
+
   // ---- activity -----------------------------------------------------------
 
   async listActivity(query: ActivityQuery): Promise<ActivityPage> {

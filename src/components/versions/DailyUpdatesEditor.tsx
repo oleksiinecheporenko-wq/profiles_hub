@@ -38,10 +38,12 @@ export function DailyUpdatesEditor({
   profileId,
   version,
   imageUrls: initialImageUrls,
+  skillSuggestions,
 }: {
   profileId: string;
   version: ProfileVersion;
   imageUrls: Record<string, string>;
+  skillSuggestions: string[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -125,6 +127,7 @@ export function DailyUpdatesEditor({
           icon="skills"
           value={content.skills}
           max={MAX_SKILLS}
+          suggestions={skillSuggestions}
           validate={zodError(skillsSchema)}
           onSave={(value) => apply({ field: "skills", value })}
         />

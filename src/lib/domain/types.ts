@@ -79,8 +79,10 @@ export type Certification = {
   id: Uuid;
   title: string;
   issuer: string | null;
-  date: PlainDate | null;
-  url: string | null;
+  date_from: PlainDate | null;
+  /** null = без дати завершення. */
+  date_to: PlainDate | null;
+  description: string | null;
 };
 
 export type EmploymentItem = {

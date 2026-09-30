@@ -25,6 +25,16 @@ export const UPDATE_SUBTABS = [
 ] as const;
 export type UpdatesSubtab = (typeof UPDATE_SUBTABS)[number]["key"];
 
+/** Autocomplete is a convenience: a failure (e.g. catalog not migrated yet) must not break the page. */
+async function skillSuggestions(repo: Repository): Promise<string[]> {
+  try {
+    return await repo.listSkillSuggestions();
+  } catch (error) {
+    console.error("[skills]", error);
+    return [];
+  }
+}
+
 async function portfolioImageUrls(repo: Repository, versions: (ProfileVersion | null)[]) {
   const paths = versions.flatMap((v) => v?.content.portfolio.map((p) => p.image_path).filter((p): p is string => !!p) ?? []);
   if (paths.length === 0) return {};
@@ -90,7 +100,13 @@ export async function UpdatesTab({
           від <span className="font-mono text-fg">{formatPlainDate(current.updateDate)}</span>
         </p>
         <div className="grid grid-cols-[minmax(0,64fr)_minmax(280px,36fr)] items-start gap-8">
-          <DailyUpdatesEditor key={current.id} profileId={profileId} version={current} imageUrls={imageUrls} />
+          <DailyUpdatesEditor
+            key={current.id}
+            profileId={profileId}
+            version={current}
+            imageUrls={imageUrls}
+            skillSuggestions={await skillSuggestions(repo)}
+          />
           <aside aria-labelledby="daily-history-heading" className="sticky top-6 flex max-h-[calc(100vh-3rem)] flex-col self-start">
             <div className="flex items-center justify-between pb-2">
               <SectionHeading id="daily-history-heading" icon={History} as="h3">
@@ -228,6 +244,7 @@ export async function UpdatesTab({
         key="new"
         mode="create"
         profileId={profileId}
+        skillSuggestions={await skillSuggestions(repo)}
         baseHref={base}
         initial={draftFromVersion(current, todayPlainDate())}
         imageUrls={await portfolioImageUrls(repo, [current])}
@@ -239,6 +256,7 @@ export async function UpdatesTab({
         key={`edit-${selected.id}-${selected.updatedAt}`}
         mode="edit"
         profileId={profileId}
+        skillSuggestions={await skillSuggestions(repo)}
         baseHref={base}
         versionId={selected.id}
         expectedUpdatedAt={selected.updatedAt}

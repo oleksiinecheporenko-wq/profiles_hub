@@ -58,6 +58,8 @@ type TagsField = Base & {
   value: string[];
   onSave: SaveHandler<string[]>;
   max?: number;
+  /** Previously saved values offered while typing. */
+  suggestions?: string[];
   validate?: (value: string[]) => string | null;
 };
 
@@ -361,6 +363,7 @@ function FieldControl({
           value={draft as string[]}
           onChange={setDraft}
           max={p.max}
+          suggestions={p.suggestions}
           onKeyDown={onKeyDown}
         />
       );

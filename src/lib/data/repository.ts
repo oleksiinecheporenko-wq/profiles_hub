@@ -101,6 +101,8 @@ export interface Repository {
   ): Promise<ProfileVersion>;
   /** Newest first. */
   listDailyChanges(versionId: Uuid): Promise<DailyChange[]>;
+  /** Every skill ever saved in any version (autocomplete), alphabetical. */
+  listSkillSuggestions(): Promise<string[]>;
 
   // Activity
   listActivity(query: ActivityQuery): Promise<ActivityPage>;

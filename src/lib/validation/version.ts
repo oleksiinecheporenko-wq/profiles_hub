@@ -42,13 +42,19 @@ export const projectCatalogItemSchema = z.object({
   url: optionalUrl,
 });
 
-export const certificationSchema = z.object({
-  id: uuid,
-  title: requiredText(MAX_SHORT_TEXT, "Вкажіть назву."),
-  issuer: optionalText(MAX_SHORT_TEXT),
-  date: optionalPlainDate,
-  url: optionalUrl,
-});
+export const certificationSchema = z
+  .object({
+    id: uuid,
+    title: requiredText(MAX_SHORT_TEXT, "Вкажіть назву."),
+    issuer: optionalText(MAX_SHORT_TEXT),
+    date_from: optionalPlainDate,
+    date_to: optionalPlainDate,
+    description: optionalText(MAX_LONG_TEXT),
+  })
+  .refine((v) => !v.date_from || !v.date_to || v.date_from <= v.date_to, {
+    message: "Дата завершення раніша за дату початку.",
+    path: ["date_to"],
+  });
 
 export const employmentItemSchema = z
   .object({

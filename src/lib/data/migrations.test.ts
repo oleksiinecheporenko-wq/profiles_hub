@@ -94,7 +94,7 @@ describe("migrations + seed", () => {
       join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relkind = 'r'
     `);
-    expect(rows.length).toBe(7);
+    expect(rows.length).toBe(8);
     expect(rows.every((r) => r.relrowsecurity)).toBe(true);
   });
 });
@@ -414,6 +414,42 @@ describe("functions and log triggers", () => {
     expect(tx.map((r) => r.entity_type)).toEqual(expect.arrayContaining(["profile", "version", "contract"]));
 
     expect(await errorCode("select public.delete_profile($1)", [p.id])).toBe("UP404");
+  });
+
+  it("skill_catalog keeps every skill ever saved", async () => {
+    const seeded = await all<{ name: string }>("select name from public.skill_catalog");
+    expect(seeded.map((r) => r.name)).toEqual(expect.arrayContaining(["JavaScript", "UX Research"]));
+
+    const v = await currentVersion((await one<{ id: string }>("select id from public.profiles where full_name = 'Тарас Умовний'")).id);
+    const withNew = await one<ProfileVersionRow>(
+      "select * from public.apply_daily_change($1, 'skills', $2::jsonb, $3)",
+      [v.id, JSON.stringify({ value: [...v.skills, "Каталог-Тест"] }), v.updated_at],
+    );
+    await db.query("select public.apply_daily_change($1, 'skills', $2::jsonb, $3)", [
+      v.id,
+      JSON.stringify({ value: v.skills }),
+      withNew.updated_at,
+    ]);
+    const names = (await all<{ name: string }>("select name from public.skill_catalog")).map((r) => r.name);
+    expect(names).toContain("Каталог-Тест");
+    // Case-insensitive uniqueness.
+    expect(names.filter((n) => n.toLowerCase() === "javascript")).toHaveLength(1);
+  });
+
+  it("_migrate_certification maps the old shape without losing data", async () => {
+    const old = { id: "11111111-1111-4111-8111-111111111111", title: "Cert", issuer: "Org", date: "2024-01-02", url: "https://example.com/c" };
+    const row = await one<{ item: Record<string, unknown> }>("select public._migrate_certification($1::jsonb) as item", [JSON.stringify(old)]);
+    expect(row.item).toEqual({
+      id: old.id,
+      title: "Cert",
+      issuer: "Org",
+      date_from: "2024-01-02",
+      date_to: null,
+      description: "https://example.com/c",
+    });
+    const already = { ...row.item };
+    const again = await one<{ item: unknown }>("select public._migrate_certification($1::jsonb) as item", [JSON.stringify(already)]);
+    expect(again.item).toEqual(already);
   });
 
   it("direct edits without context get a generic action", async () => {

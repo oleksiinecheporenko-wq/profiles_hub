@@ -69,10 +69,11 @@ export const COLLECTION_META: Record<CollectionField, CollectionMeta> = {
     fields: [
       { key: "title", label: "Назва", kind: "text", required: true },
       { key: "issuer", label: "Ким видано", kind: "text" },
-      { key: "date", label: "Дата", kind: "date" },
-      { key: "url", label: "Посилання", kind: "url" },
+      { key: "date_from", label: "Дата початку", kind: "date" },
+      { key: "date_to", label: "Дата завершення", kind: "date" },
+      { key: "description", label: "Опис", kind: "textarea" },
     ],
-    newItem: (id) => ({ id, title: "", issuer: null, date: null, url: null }),
+    newItem: (id) => ({ id, title: "", issuer: null, date_from: null, date_to: null, description: null }),
     summary: (i) => text((i as { title?: string }).title) || "Без назви",
   },
   employment_history: {
@@ -114,7 +115,7 @@ export function itemMetaLine(field: CollectionField, item: CollectionItem): stri
     case "project_catalog":
       return typeof i.price === "number" ? formatPrice(i.price) : null;
     case "certifications":
-      return [i.issuer, typeof i.date === "string" ? formatPlainDate(i.date) : null].filter(Boolean).join(" · ") || null;
+      return [i.issuer, certificationPeriod(i.date_from, i.date_to)].filter(Boolean).join(" · ") || null;
     case "employment_history": {
       const from = typeof i.date_from === "string" ? formatPlainDate(i.date_from) : "—";
       const to = typeof i.date_to === "string" ? formatPlainDate(i.date_to) : "по теперішній час";
@@ -123,4 +124,14 @@ export function itemMetaLine(field: CollectionField, item: CollectionItem): stri
     default:
       return typeof i.url === "string" ? i.url : null;
   }
+}
+
+/** `01.07.2026 — 01.07.2027`, `з 01.07.2026`, `до 01.07.2027` or null. */
+export function certificationPeriod(from: unknown, to: unknown): string | null {
+  const f = typeof from === "string" && from ? formatPlainDate(from) : null;
+  const t = typeof to === "string" && to ? formatPlainDate(to) : null;
+  if (f && t) return `${f} — ${t}`;
+  if (f) return `з ${f}`;
+  if (t) return `до ${t}`;
+  return null;
 }

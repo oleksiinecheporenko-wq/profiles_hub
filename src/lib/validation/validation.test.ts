@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { skillsSchema, optionalEmail, optionalUrl } from "./common";
 import { contractInputSchema } from "./contract";
 import { profileFieldsPatchSchema } from "./profile";
-import { dailyChangeSchema, descriptionSchema, versionPayloadSchema } from "./version";
+import { certificationSchema, dailyChangeSchema, descriptionSchema, versionPayloadSchema } from "./version";
 import { emptyVersionContent } from "@/lib/domain/versions";
 
 describe("validation", () => {
@@ -44,6 +44,13 @@ describe("validation", () => {
       item: { id: crypto.randomUUID(), title: "", url: "nope" },
     });
     expect(bad.success).toBe(false);
+  });
+
+  it("certifications have a period and a description", () => {
+    const base = { id: crypto.randomUUID(), title: "Cert", issuer: null, description: "Опис" };
+    expect(certificationSchema.safeParse({ ...base, date_from: "2024-01-01", date_to: "2025-01-01" }).success).toBe(true);
+    expect(certificationSchema.safeParse({ ...base, date_from: "2025-01-01", date_to: "2024-01-01" }).success).toBe(false);
+    expect(certificationSchema.safeParse({ ...base, date_from: null, date_to: null }).success).toBe(true);
   });
 
   it("rejects duplicate item ids in a version payload", () => {

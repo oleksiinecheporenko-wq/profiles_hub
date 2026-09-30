@@ -4,7 +4,7 @@ import { Archive, ArrowLeft, ExternalLink, History, Layers, Pencil } from "lucid
 import { buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FieldLabel, type FieldIconKey } from "@/components/ui/FieldLabel";
-import { COLLECTION_META, FIELD_LABELS } from "@/lib/domain/collections";
+import { certificationPeriod, COLLECTION_META, FIELD_LABELS } from "@/lib/domain/collections";
 import type {
   Certification,
   CollectionField,
@@ -100,8 +100,8 @@ function CollectionList({
           }
           case "certifications": {
             const i = raw as Certification;
-            const meta = [i.issuer, i.date && formatPlainDate(i.date)].filter(Boolean).join(" · ");
-            return <ItemCard key={i.id} title={title} meta={meta || undefined} link={i.url} />;
+            const meta = [i.issuer, certificationPeriod(i.date_from, i.date_to)].filter(Boolean).join(" · ");
+            return <ItemCard key={i.id} title={title} meta={meta || undefined} description={i.description} />;
           }
           case "employment_history": {
             const i = raw as EmploymentItem;
