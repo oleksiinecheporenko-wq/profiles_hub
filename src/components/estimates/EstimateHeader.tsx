@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Menu } from "@/components/ui/Menu";
 import { useToast } from "@/components/ui/Toast";
 import { STATUS_LABELS, STATUS_SECTIONS, type Estimate } from "@/lib/domain/estimate";
+import { CopyLinkButton } from "./CopyLinkButton";
 import { DateLine } from "./DateLine";
 
 const STATUS_TONE = {
@@ -106,6 +107,7 @@ export function EstimateHeader({ estimate }: Props) {
           <span className={clsx("rounded-full border px-2.5 py-0.5 text-[13px]", STATUS_TONE[estimate.status])}>
             {STATUS_LABELS[estimate.status]}
           </span>
+          <CopyLinkButton estimateId={estimate.id} className="size-9" />
           <Menu
             label="Дії із запитом"
             triggerLabel="Дії із запитом"

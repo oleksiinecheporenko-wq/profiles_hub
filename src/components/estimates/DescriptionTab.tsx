@@ -63,7 +63,7 @@ export function DescriptionTab({ estimate, files }: Props) {
   });
 
   return (
-    <div className="flex max-w-4xl flex-col gap-8">
+    <div className="flex flex-col gap-8">
       <div className="flex h-5 justify-end">
         <SaveIndicator state={state} />
       </div>

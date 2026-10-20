@@ -2,6 +2,7 @@ import Link from "next/link";
 import { UserRound } from "lucide-react";
 import { computeTable, costs, type Estimate } from "@/lib/domain/estimate";
 import { formatCost, formatHours } from "@/lib/format";
+import { CopyLinkButton } from "./CopyLinkButton";
 import { DateLine } from "./DateLine";
 
 /** One estimate in a section list; opens the estimate page. */
@@ -9,12 +10,12 @@ export function EstimateCard({ estimate }: { estimate: Estimate }) {
   const { total } = computeTable(estimate.rows);
   const cost = costs(total, estimate.rate);
   return (
-    <li>
+    <li className="relative">
       <Link
         href={`/estimates/${estimate.id}`}
         className="flex h-full flex-col gap-3 rounded-lg border border-line bg-surface-1 p-5 transition-colors duration-150 hover:border-line-strong hover:bg-surface-hover"
       >
-        <div className="min-w-0">
+        <div className="min-w-0 pr-9">
           <h2 className="truncate text-lg font-semibold">{estimate.clientName}</h2>
           <p className="truncate text-sm text-fg-2">{estimate.projectName ?? "Без назви проєкту"}</p>
         </div>
@@ -32,6 +33,8 @@ export function EstimateCard({ estimate }: { estimate: Estimate }) {
           {cost && <span className="ml-auto font-mono font-semibold text-positive">{formatCost(cost.realistic)}</span>}
         </div>
       </Link>
+      {/* Outside the link: a button cannot sit inside an anchor. */}
+      <CopyLinkButton estimateId={estimate.id} className="absolute top-4 right-4" />
     </li>
   );
 }

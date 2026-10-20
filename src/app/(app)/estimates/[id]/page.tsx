@@ -34,7 +34,7 @@ export default async function EstimatePage({ params, searchParams }: PageProps<"
   const files = estimate.files.map((f) => ({ ...f, url: urls[f.path] ?? null }));
 
   return (
-    <div className="max-w-6xl">
+    <div>
       <MarkSection href={STATUS_SECTIONS[estimate.status].href} />
       <EstimateHeader estimate={estimate} />
       <EstimateWorkspace
