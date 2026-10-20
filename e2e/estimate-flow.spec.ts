@@ -33,6 +33,15 @@ test("request → ready → archive, with the PDF", async ({ page }) => {
   await expect(table.locator("tbody tr")).toHaveCount(11);
   await page.getByLabel("Розробник").fill("Тест Розробник");
   await page.getByLabel("Назва фази").fill("MVP");
+  // Long names wrap instead of being cut off.
+  const long = "Very long feature name ".repeat(8).trim();
+  await page.getByLabel("Feature").nth(1).fill(long);
+  await expect(page.getByLabel("Feature").nth(1)).toHaveValue(long);
+  expect((await page.getByLabel("Feature").nth(1).boundingBox())!.height).toBeGreaterThan(60);
+  await page.getByLabel("Назва фази").fill(long);
+  expect((await page.getByLabel("Назва фази").boundingBox())!.height).toBeGreaterThan(60);
+  await page.getByLabel("Feature").nth(1).fill("");
+  await page.getByLabel("Назва фази").fill("MVP");
   await page.getByLabel("Feature").first().fill("Login");
   await page.getByLabel("Realistic, год: Login").fill("10");
   const login = table.locator("tbody tr").nth(1);

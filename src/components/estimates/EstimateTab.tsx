@@ -64,6 +64,40 @@ function HoursInput({ value, onChange, label }: { value: number | null; onChange
   );
 }
 
+/**
+ * One-line value that wraps onto more lines as it grows, so long names stay
+ * visible. Enter does not add a line break; pasted line breaks become spaces.
+ */
+function WrapField({
+  label,
+  value,
+  placeholder,
+  autoFocus,
+  onChange,
+  className,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  autoFocus?: boolean;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <textarea
+      aria-label={label}
+      value={value}
+      placeholder={placeholder}
+      maxLength={500}
+      rows={1}
+      autoFocus={autoFocus}
+      onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+      onChange={(e) => onChange(e.target.value.replace(/\s*[\r\n]+\s*/g, " "))}
+      className={clsx(cellInput, "block resize-none break-words [field-sizing:content]", className)}
+    />
+  );
+}
+
 /** `Оцінка`: developer, the hours table and the ready/archive controls. */
 export function EstimateTab({ estimate }: Props) {
   const { id, status } = estimate;
@@ -253,17 +287,16 @@ export function EstimateTab({ estimate }: Props) {
                   <tr key={row.id} className="border-b border-line bg-accent-soft">
                     <td colSpan={2} className="p-0">
                       {editable ? (
-                        <input
-                          aria-label="Назва фази"
+                        <WrapField
+                          label="Назва фази"
                           value={row.feature}
                           placeholder="Phase"
-                          maxLength={500}
                           autoFocus={focusId === row.id}
-                          onChange={(e) => patchRow(row.id, { feature: e.target.value })}
-                          className={clsx(cellInput, "py-3 text-lg font-bold focus:bg-transparent")}
+                          onChange={(feature) => patchRow(row.id, { feature })}
+                          className="py-3 text-lg font-bold focus:bg-transparent"
                         />
                       ) : (
-                        <p className="px-3 py-3 text-lg font-bold">{row.feature || "Phase"}</p>
+                        <p className="px-3 py-3 text-lg font-bold break-words">{row.feature || "Phase"}</p>
                       )}
                     </td>
                     {(["optimistic", "pessimistic", "realistic"] as const).map((k) => (
@@ -285,17 +318,15 @@ export function EstimateTab({ estimate }: Props) {
                 <tr key={row.id} className="border-b border-line align-top last:border-b-0">
                   <td className="border-r border-line p-0">
                     {editable ? (
-                      <input
-                        aria-label="Feature"
+                      <WrapField
+                        label="Feature"
                         value={row.feature}
                         placeholder="Фіча"
-                        maxLength={500}
                         autoFocus={focusId === row.id}
-                        onChange={(e) => patchRow(row.id, { feature: e.target.value })}
-                        className={cellInput}
+                        onChange={(feature) => patchRow(row.id, { feature })}
                       />
                     ) : (
-                      <p className="px-3 py-2.5">{row.feature}</p>
+                      <p className="px-3 py-2.5 break-words">{row.feature}</p>
                     )}
                   </td>
                   <td className="border-r border-line p-0">
