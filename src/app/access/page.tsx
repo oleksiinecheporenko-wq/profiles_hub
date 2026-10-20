@@ -15,7 +15,7 @@ export default async function AccessPage(props: PageProps<"/access">) {
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-[380px]">
         <p className="font-mono text-[13px] font-semibold tracking-wide">
-          UPWORK <span className="text-accent">/</span> PROFILE MANAGER
+          CORALSOFT <span className="text-accent">/</span> ESTIMATION HUB
         </p>
         <p className="mt-0.5 font-mono text-[11px] text-fg-muted">internal workspace</p>
         <div className="mt-8 rounded-lg border border-line bg-surface-1 p-6">

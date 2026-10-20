@@ -4,14 +4,14 @@ const nextConfig: NextConfig = {
   // Keep the dev badge away from the sidebar's collapse button.
   devIndicators: { position: "bottom-right" },
   experimental: {
-    // Images up to 5 MB go through server actions; leave room for multipart overhead.
+    // Mock-mode uploads (up to 4 MB) go through a server action; real files go straight to storage.
     serverActions: { bodySizeLimit: "6mb" },
   },
   // The PDF renderer loads fonts and native-ish deps at runtime; keep it out of the bundle.
   serverExternalPackages: ["@react-pdf/renderer"],
-  // Font files are read from disk by the export route; make sure they ship with it.
+  // Font files are read from disk by the PDF route; make sure they ship with it.
   outputFileTracingIncludes: {
-    "/api/contracts/*/export": ["./src/assets/fonts/**/*"],
+    "/api/estimates/*/pdf": ["./src/assets/fonts/**/*"],
   },
 };
 

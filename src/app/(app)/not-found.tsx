@@ -10,8 +10,8 @@ export default function NotFound() {
       message="Сторінку не знайдено або запис видалено."
       className="mt-16"
       action={
-        <Link href="/profiles" className={buttonClassName("secondary", "sm")}>
-          До профілів
+        <Link href="/requests" className={buttonClassName("secondary", "sm")}>
+          До запитів
         </Link>
       }
     />

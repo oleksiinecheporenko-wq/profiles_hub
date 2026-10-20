@@ -9,8 +9,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Upwork Profile Manager",
-    template: "%s · Upwork Profile Manager",
+    default: "Estimation Hub",
+    template: "%s · Estimation Hub",
   },
   robots: { index: false, follow: false },
 };

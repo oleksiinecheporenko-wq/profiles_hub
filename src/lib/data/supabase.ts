@@ -1,79 +1,32 @@
 import "server-only";
 
 // Supabase implementation of Repository. Uses the service role key, so it must only
-// ever run on the server. Reads go through tables/views, every multi-row mutation
-// through a Postgres function (supabase/migrations/…_functions.sql).
+// ever run on the server. Status changes are conditional updates (`where status in
+// (...)`), so a stale page can never move an estimate out of the wrong section.
 
 import { createClient, type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
-import type { DailyChangeInput } from "@/lib/domain/dailyChanges";
-import type { ContractStatus, ProfileStatus } from "@/lib/domain/enums";
-import { RepositoryError, type RepositoryErrorCode } from "@/lib/domain/errors";
-import type { VersionPayload } from "@/lib/domain/versions";
-import type {
-  ActivityEntry,
-  Contract,
-  ContractComment,
-  ContractDetail,
-  ContractListItem,
-  DailyChange,
-  Profile,
-  ProfileLanguage,
-  ProfileOverview,
-  ProfileRef,
-  ProfileVersion,
-  Timestamp,
-  Uuid,
-  VersionSummary,
-} from "@/lib/domain/types";
-import type { ContractInput } from "@/lib/validation/contract";
-import type { CreateProfileInput, LanguageInput, ProfileFieldsPatch } from "@/lib/validation/profile";
-import type {
-  ActivityPage,
-  ActivityQuery,
-  ContractQuery,
-  DeletedProfile,
-  ImageUpload,
-  ProfileDetail,
-  Repository,
-  StorageBucket,
-} from "./repository";
 import {
-  activityFromRow,
-  commentFromRow,
-  contractFromRow,
-  dailyChangeFromRow,
-  languageFromRow,
-  profileFromRow,
-  profileOverviewFromRow,
-  versionFromRow,
-  type ActivityLogRow,
-  type ContractCommentRow,
-  type ContractRow,
-  type DailyChangeRow,
-  type ProfileLanguageRow,
-  type ProfileOverviewRow,
-  type ProfileRow,
-  type ProfileVersionRow,
-} from "./rows";
+  defaultRows,
+  type Estimate,
+  type EstimateFile,
+  type EstimateRow,
+  type EstimateStatus,
+  type EstimateWithFiles,
+  type Uuid,
+} from "@/lib/domain/estimate";
+import { RepositoryError, type RepositoryErrorCode } from "@/lib/domain/errors";
+import type { CreateEstimateInput, EstimateInfoPatch, FileMeta } from "@/lib/validation/estimate";
+import { MATERIALS_BUCKET, materialPath, type EstimateQuery, type Repository, type UploadTarget } from "./repository";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 const SQLSTATE_TO_CODE: Record<string, RepositoryErrorCode> = {
-  UP404: "not_found",
-  UP409: "conflict",
-  UP410: "duplicate",
-  UP422: "invalid",
-  UP423: "not_current",
-  "23505": "duplicate", // unique_violation
-  "21000": "duplicate", // cardinality_violation (same key twice in one upsert)
-  "23503": "not_found", // foreign_key_violation
-  "23502": "invalid", // not_null_violation
-  "23514": "invalid", // check_violation
-  "22P02": "invalid", // invalid_text_representation (bad enum/uuid)
-  "22003": "invalid", // numeric_value_out_of_range
-  "22007": "invalid", // invalid_datetime_format
-  "22008": "invalid", // datetime_field_overflow
-  PGRST116: "not_found", // .single() found no row
+  "23503": "not_found",
+  "23502": "invalid",
+  "23514": "invalid",
+  "22P02": "invalid",
+  "22003": "invalid",
+  PGRST116: "not_found",
 };
 
 function fail(error: PostgrestError | { message: string; code?: string }): never {
@@ -82,74 +35,80 @@ function fail(error: PostgrestError | { message: string; code?: string }): never
   throw new RepositoryError(code, error.message);
 }
 
-function unwrap<T>(result: { data: T | null; error: PostgrestError | null }): T {
-  if (result.error) fail(result.error);
-  if (result.data === null) throw new RepositoryError("not_found");
-  return result.data;
-}
-
-type ContractWithProfileRow = ContractRow & {
-  profile: Pick<ProfileRow, "id" | "full_name" | "photo_path" | "profile_url"> | null;
+type EstimateDbRow = {
+  id: string;
+  client_name: string;
+  project_name: string | null;
+  status: EstimateStatus;
+  developer: string | null;
+  rate: number | string | null;
+  job_title: string | null;
+  job_description: string | null;
+  additional_info: string | null;
+  links: Estimate["links"] | null;
+  rows: EstimateRow[] | null;
+  created_at: string;
+  ready_at: string | null;
+  archived_at: string | null;
+  updated_at: string;
 };
 
-const CONTRACT_SELECT = "*, profile:profiles(id, full_name, photo_path, profile_url)";
+type FileDbRow = {
+  id: string;
+  estimate_id: string;
+  path: string;
+  name: string;
+  mime_type: string | null;
+  size: number | string | null;
+  created_at: string;
+};
 
-function refFromRow(r: Pick<ProfileRow, "id" | "full_name" | "photo_path" | "profile_url">): ProfileRef {
-  return { id: r.id, fullName: r.full_name, photoPath: r.photo_path, profileUrl: r.profile_url };
-}
+const num = (v: number | string | null) => (v === null ? null : Number(v));
 
-function contractListItemFromRow(r: ContractWithProfileRow): ContractListItem {
+function estimateFromRow(r: EstimateDbRow): Estimate {
   return {
-    ...contractFromRow(r),
-    profile: r.profile
-      ? refFromRow(r.profile)
-      : { id: r.profile_id, fullName: "—", photoPath: null, profileUrl: null },
+    id: r.id,
+    clientName: r.client_name,
+    projectName: r.project_name,
+    status: r.status,
+    developer: r.developer,
+    rate: num(r.rate),
+    jobTitle: r.job_title,
+    jobDescription: r.job_description,
+    additionalInfo: r.additional_info,
+    links: r.links ?? [],
+    rows: (r.rows ?? []).map((row) => ({ ...row, realistic: row.realistic === null ? null : Number(row.realistic) })),
+    createdAt: r.created_at,
+    readyAt: r.ready_at,
+    archivedAt: r.archived_at,
+    updatedAt: r.updated_at,
   };
 }
 
-function patchToRow(patch: ProfileFieldsPatch): Record<string, unknown> {
-  const map: Record<keyof ProfileFieldsPatch, string> = {
-    visibility: "visibility",
-    experienceLevel: "experience_level",
-    education: "education",
-    categories: "categories",
-    email: "email",
-    billingMethod: "billing_method",
-    timeZone: "time_zone",
-    address: "address",
-    phone: "phone",
-    profileUrl: "profile_url",
-    photoPath: "photo_path",
+function fileFromRow(r: FileDbRow): EstimateFile {
+  return {
+    id: r.id,
+    estimateId: r.estimate_id,
+    path: r.path,
+    name: r.name,
+    mimeType: r.mime_type,
+    size: num(r.size),
+    createdAt: r.created_at,
   };
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(patch)) {
-    if (value !== undefined) out[map[key as keyof ProfileFieldsPatch]] = value;
-  }
-  return out;
 }
 
-function dailyChangeToRpc(change: DailyChangeInput): Record<string, unknown> {
-  if (!("op" in change)) return { value: change.value };
-  switch (change.op) {
-    case "add":
-      return change.index === undefined
-        ? { op: "add", item: change.item }
-        : { op: "add", item: change.item, index: change.index };
-    case "update":
-      return { op: "update", item: change.item };
-    case "remove":
-      return { op: "remove", item_id: change.itemId };
-    case "reorder":
-      return { op: "reorder", ids: change.ids };
-  }
-}
+const PATCH_COLUMNS: Record<keyof EstimateInfoPatch, string> = {
+  clientName: "client_name",
+  projectName: "project_name",
+  jobTitle: "job_title",
+  jobDescription: "job_description",
+  additionalInfo: "additional_info",
+  developer: "developer",
+  links: "links",
+};
 
-function payloadToRpc(payload: VersionPayload) {
-  return { update_date: payload.updateDate, content: payload.content };
-}
-
-/** Double-quoted PostgREST filter value (timestamps contain `:` and `+`). */
-const quote = (value: string) => `"${value.replace(/"/g, '\\"')}"`;
+/** Characters with meaning in PostgREST filter syntax are dropped from search text. */
+const safeSearch = (q: string) => q.replace(/[,()*%\\"'.:]/g, " ").trim().slice(0, 100);
 
 export class SupabaseRepository implements Repository {
   readonly kind = "supabase" as const;
@@ -161,331 +120,152 @@ export class SupabaseRepository implements Repository {
     });
   }
 
-  // ---- profiles -----------------------------------------------------------
-
-  async listProfiles(): Promise<ProfileOverview[]> {
-    const rows = unwrap(
-      await this.db.from("profile_overview").select("*").order("last_activity_at", { ascending: false }),
-    ) as ProfileOverviewRow[];
-    return rows.map(profileOverviewFromRow);
-  }
-
-  async getProfile(id: Uuid): Promise<ProfileDetail | null> {
-    const [overview, languages] = await Promise.all([
-      this.db.from("profile_overview").select("*").eq("id", id).maybeSingle(),
-      this.db.from("profile_languages").select("*").eq("profile_id", id).order("position"),
-    ]);
-    if (overview.error) fail(overview.error);
-    if (languages.error) fail(languages.error);
-    if (!overview.data) return null;
-    return {
-      profile: profileOverviewFromRow(overview.data as ProfileOverviewRow),
-      languages: (languages.data as ProfileLanguageRow[]).map(languageFromRow),
-    };
-  }
-
-  async createProfile(input: CreateProfileInput): Promise<Profile> {
-    const row = unwrap(
-      await this.db.rpc("create_profile", {
-        p_full_name: input.fullName,
-        p_status: input.status,
-        p_title: input.title,
-        p_profile_url: input.profileUrl,
-        p_photo_path: input.photoPath,
-      }),
-    ) as ProfileRow;
-    return profileFromRow(row);
-  }
-
-  async updateProfileFields(id: Uuid, patch: ProfileFieldsPatch): Promise<Profile> {
-    const row = unwrap(
-      await this.db.rpc("update_profile_fields", { p_profile_id: id, p_patch: patchToRow(patch) }),
-    ) as ProfileRow;
-    return profileFromRow(row);
-  }
-
-  async setProfileLanguages(id: Uuid, languages: LanguageInput[]): Promise<ProfileLanguage[]> {
-    const rows = unwrap(
-      await this.db.rpc("set_profile_languages", { p_profile_id: id, p_languages: languages }),
-    ) as ProfileLanguageRow[];
-    return rows.map(languageFromRow);
-  }
-
-  async changeProfileStatus(id: Uuid, status: ProfileStatus, reason: string | null): Promise<Profile> {
-    const row = unwrap(
-      await this.db.rpc("change_profile_status", {
-        p_profile_id: id,
-        p_new_status: status,
-        p_reason: reason,
-      }),
-    ) as ProfileRow;
-    return profileFromRow(row);
-  }
-
-  async deleteProfile(id: Uuid): Promise<DeletedProfile> {
-    const data = unwrap(await this.db.rpc("delete_profile", { p_profile_id: id })) as {
-      full_name: string;
-      photo_path: string | null;
-      portfolio_images: string[] | null;
-    };
-    return {
-      fullName: data.full_name,
-      photoPath: data.photo_path,
-      portfolioImages: data.portfolio_images ?? [],
-    };
-  }
-
-  // ---- versions -----------------------------------------------------------
-
-  async listVersions(profileId: Uuid): Promise<VersionSummary[]> {
-    const rows = unwrap(
-      await this.db
-        .from("profile_versions")
-        .select("id, update_date, is_current, title, created_at, updated_at, daily_changes(count)")
-        .eq("profile_id", profileId)
-        .order("update_date", { ascending: false })
-        .order("created_at", { ascending: false }),
-    ) as (Pick<ProfileVersionRow, "id" | "update_date" | "is_current" | "title" | "created_at" | "updated_at"> & {
-      daily_changes: { count: number }[];
-    })[];
-    return rows.map((r) => ({
-      id: r.id,
-      updateDate: r.update_date,
-      isCurrent: r.is_current,
-      title: r.title,
-      dailyChangeCount: r.daily_changes[0]?.count ?? 0,
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
-    }));
-  }
-
-  async getVersion(versionId: Uuid): Promise<ProfileVersion | null> {
-    const { data, error } = await this.db.from("profile_versions").select("*").eq("id", versionId).maybeSingle();
-    if (error) fail(error);
-    return data ? versionFromRow(data as ProfileVersionRow) : null;
-  }
-
-  async getCurrentVersion(profileId: Uuid): Promise<ProfileVersion | null> {
+  /** Conditional update: only applies while the estimate is in one of `allowed`. */
+  private async transition(id: Uuid, allowed: EstimateStatus[], values: Record<string, unknown>): Promise<Estimate> {
     const { data, error } = await this.db
-      .from("profile_versions")
+      .from("estimates")
+      .update(values)
+      .eq("id", id)
+      .in("status", allowed)
       .select("*")
-      .eq("profile_id", profileId)
-      .eq("is_current", true)
       .maybeSingle();
     if (error) fail(error);
-    return data ? versionFromRow(data as ProfileVersionRow) : null;
+    if (data) return estimateFromRow(data as EstimateDbRow);
+    const exists = await this.db.from("estimates").select("id").eq("id", id).maybeSingle();
+    throw new RepositoryError(exists.data ? "wrong_status" : "not_found");
   }
 
-  async applyDailyChange(
-    versionId: Uuid,
-    change: DailyChangeInput,
-    expectedUpdatedAt: Timestamp,
-  ): Promise<ProfileVersion> {
-    const row = unwrap(
-      await this.db.rpc("apply_daily_change", {
-        p_version_id: versionId,
-        p_field: change.field,
-        p_change: dailyChangeToRpc(change),
-        p_expected_updated_at: expectedUpdatedAt,
-      }),
-    ) as ProfileVersionRow;
-    return versionFromRow(row);
-  }
-
-  async createGlobalVersion(profileId: Uuid, payload: VersionPayload): Promise<ProfileVersion> {
-    const row = unwrap(
-      await this.db.rpc("create_global_version", {
-        p_profile_id: profileId,
-        p_payload: payloadToRpc(payload),
-      }),
-    ) as ProfileVersionRow;
-    return versionFromRow(row);
-  }
-
-  async editGlobalVersion(
-    versionId: Uuid,
-    payload: VersionPayload,
-    expectedUpdatedAt: Timestamp,
-  ): Promise<ProfileVersion> {
-    const row = unwrap(
-      await this.db.rpc("edit_global_version", {
-        p_version_id: versionId,
-        p_payload: payloadToRpc(payload),
-        p_expected_updated_at: expectedUpdatedAt,
-      }),
-    ) as ProfileVersionRow;
-    return versionFromRow(row);
-  }
-
-  async listDailyChanges(versionId: Uuid): Promise<DailyChange[]> {
-    const rows = unwrap(
-      await this.db
-        .from("daily_changes")
-        .select("*")
-        .eq("version_id", versionId)
-        .order("changed_at", { ascending: false })
-        .order("id", { ascending: false }),
-    ) as DailyChangeRow[];
-    return rows.map(dailyChangeFromRow);
-  }
-
-  async listSkillSuggestions(): Promise<string[]> {
-    const rows = unwrap(await this.db.from("skill_catalog").select("name").order("name")) as { name: string }[];
-    return rows.map((r) => r.name);
-  }
-
-  // ---- activity -----------------------------------------------------------
-
-  async listActivity(query: ActivityQuery): Promise<ActivityPage> {
-    let q = this.db.from("activity_feed").select("*");
-    if (query.profileId) q = q.eq("profile_id", query.profileId);
-    if (query.actions) q = q.in("action", query.actions);
-    if (query.from) q = q.gte("occurred_at", query.from);
-    if (query.to) q = q.lt("occurred_at", query.to);
-    if (query.before) {
-      const at = quote(query.before.occurredAt);
-      q = q.or(`occurred_at.lt.${at},and(occurred_at.eq.${at},tx_id.lt.${query.before.txId})`);
+  async listEstimates(query: EstimateQuery): Promise<Estimate[]> {
+    let q = this.db.from("estimates").select("*").eq("status", query.status);
+    const text = query.q ? safeSearch(query.q) : "";
+    if (text) {
+      const like = `%${text}%`;
+      q = q.or(["client_name", "project_name", "job_title", "developer"].map((c) => `${c}.ilike.${like}`).join(","));
     }
-    const rows = unwrap(
-      await q
-        .order("occurred_at", { ascending: false })
-        .order("tx_id", { ascending: false })
-        .limit(query.limit + 1),
-    ) as {
-      tx_id: number | string;
-      occurred_at: string;
-      action: string;
-      profile_id: string | null;
-      rows: ActivityLogRow[];
-    }[];
-
-    const page = rows.slice(0, query.limit);
-    const profileIds = [...new Set(page.map((r) => r.profile_id).filter((id): id is string => !!id))];
-    const refs = new Map<string, ProfileRef>();
-    if (profileIds.length > 0) {
-      const profiles = unwrap(
-        await this.db.from("profiles").select("id, full_name, photo_path, profile_url").in("id", profileIds),
-      ) as Pick<ProfileRow, "id" | "full_name" | "photo_path" | "profile_url">[];
-      for (const p of profiles) refs.set(p.id, refFromRow(p));
-    }
-
-    const entries: ActivityEntry[] = page.map((r) => ({
-      txId: Number(r.tx_id),
-      occurredAt: r.occurred_at,
-      action: r.action,
-      profileId: r.profile_id,
-      profile: r.profile_id ? (refs.get(r.profile_id) ?? null) : null,
-      rows: r.rows.map(activityFromRow),
-    }));
-    const last = entries[entries.length - 1];
-    return {
-      entries,
-      nextCursor: rows.length > query.limit && last ? { occurredAt: last.occurredAt, txId: last.txId } : null,
-    };
-  }
-
-  // ---- contracts ----------------------------------------------------------
-
-  async listContracts(query: ContractQuery = {}): Promise<ContractListItem[]> {
-    let q = this.db.from("contracts").select(CONTRACT_SELECT).is("deleted_at", null);
-    if (query.profileId) q = q.eq("profile_id", query.profileId);
-    const rows = unwrap(
-      await q.order("created_date", { ascending: false }).order("created_at", { ascending: false }),
-    ) as unknown as ContractWithProfileRow[];
-    return rows.map(contractListItemFromRow);
-  }
-
-  async getContract(id: Uuid): Promise<ContractDetail | null> {
-    const [contract, comments] = await Promise.all([
-      this.db.from("contracts").select(CONTRACT_SELECT).eq("id", id).is("deleted_at", null).maybeSingle(),
-      this.db.from("contract_comments").select("*").eq("contract_id", id).order("created_at"),
-    ]);
-    if (contract.error) fail(contract.error);
-    if (comments.error) fail(comments.error);
-    if (!contract.data) return null;
-    return {
-      ...contractListItemFromRow(contract.data as unknown as ContractWithProfileRow),
-      comments: (comments.data as ContractCommentRow[]).map(commentFromRow),
-    };
-  }
-
-  async createContract(input: ContractInput): Promise<Contract> {
-    const row = unwrap(
-      await this.db.rpc("create_contract", {
-        p_profile_id: input.profileId,
-        p_created_date: input.createdDate,
-        p_title: input.title,
-        p_rate: input.rate,
-        p_description: input.description,
-        p_dialog: input.dialog,
-      }),
-    ) as ContractRow;
-    return contractFromRow(row);
-  }
-
-  async updateContract(id: Uuid, input: ContractInput, expectedUpdatedAt?: Timestamp): Promise<Contract> {
-    const row = unwrap(
-      await this.db.rpc("update_contract", {
-        p_contract_id: id,
-        p_profile_id: input.profileId,
-        p_created_date: input.createdDate,
-        p_title: input.title,
-        p_rate: input.rate,
-        p_description: input.description,
-        p_dialog: input.dialog,
-        p_expected_updated_at: expectedUpdatedAt ?? null,
-      }),
-    ) as ContractRow;
-    return contractFromRow(row);
-  }
-
-  async setContractStatus(id: Uuid, status: ContractStatus): Promise<Contract> {
-    const row = unwrap(
-      await this.db.rpc("set_contract_status", { p_contract_id: id, p_status: status }),
-    ) as ContractRow;
-    return contractFromRow(row);
-  }
-
-  async softDeleteContract(id: Uuid): Promise<void> {
-    const { error } = await this.db.rpc("soft_delete_contract", { p_contract_id: id });
+    const order = query.status === "archived" ? "archived_at" : "created_at";
+    const { data, error } = await q.order(order, { ascending: false });
     if (error) fail(error);
+    return (data as EstimateDbRow[]).map(estimateFromRow);
   }
 
-  async addContractComment(contractId: Uuid, body: string): Promise<ContractComment> {
-    const row = unwrap(
-      await this.db.rpc("add_contract_comment", { p_contract_id: contractId, p_body: body }),
-    ) as ContractCommentRow;
-    return commentFromRow(row);
+  async countByStatus(): Promise<Record<EstimateStatus, number>> {
+    const out = { in_progress: 0, ready: 0, archived: 0 };
+    const results = await Promise.all(
+      (Object.keys(out) as EstimateStatus[]).map(async (status) => {
+        const { count, error } = await this.db.from("estimates").select("id", { count: "exact", head: true }).eq("status", status);
+        if (error) fail(error);
+        return [status, count ?? 0] as const;
+      }),
+    );
+    for (const [status, count] of results) out[status] = count;
+    return out;
   }
 
-  // ---- storage --------------------------------------------------------------
+  async getEstimate(id: Uuid): Promise<EstimateWithFiles | null> {
+    const [estimate, files] = await Promise.all([
+      this.db.from("estimates").select("*").eq("id", id).maybeSingle(),
+      this.db.from("estimate_files").select("*").eq("estimate_id", id).order("created_at"),
+    ]);
+    if (estimate.error) fail(estimate.error);
+    if (files.error) fail(files.error);
+    if (!estimate.data) return null;
+    return { ...estimateFromRow(estimate.data as EstimateDbRow), files: (files.data as FileDbRow[]).map(fileFromRow) };
+  }
 
-  async uploadImage(bucket: StorageBucket, upload: ImageUpload): Promise<string> {
-    const ext = upload.contentType.split("/")[1].replace("jpeg", "jpg");
-    const path = `${crypto.randomUUID()}.${ext}`;
-    const { error } = await this.db.storage
-      .from(bucket)
-      .upload(path, upload.bytes, { contentType: upload.contentType, upsert: false });
+  async createEstimate(input: CreateEstimateInput): Promise<Estimate> {
+    const { data, error } = await this.db
+      .from("estimates")
+      .insert({
+        client_name: input.clientName,
+        project_name: input.projectName,
+        rows: defaultRows(() => crypto.randomUUID()),
+      })
+      .select("*")
+      .single();
+    if (error) fail(error);
+    return estimateFromRow(data as EstimateDbRow);
+  }
+
+  async updateInfo(id: Uuid, patch: EstimateInfoPatch): Promise<Estimate> {
+    const values: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) {
+      if (v !== undefined) values[PATCH_COLUMNS[k as keyof EstimateInfoPatch]] = v;
+    }
+    return this.transition(id, ["in_progress", "ready"], values);
+  }
+
+  async updateRows(id: Uuid, rows: EstimateRow[]): Promise<Estimate> {
+    return this.transition(id, ["in_progress"], { rows });
+  }
+
+  async markReady(id: Uuid): Promise<Estimate> {
+    return this.transition(id, ["in_progress"], { status: "ready", ready_at: new Date().toISOString() });
+  }
+
+  async reopen(id: Uuid): Promise<Estimate> {
+    return this.transition(id, ["ready"], { status: "in_progress", ready_at: null });
+  }
+
+  async setRate(id: Uuid, rate: number | null): Promise<Estimate> {
+    return this.transition(id, ["ready"], { rate });
+  }
+
+  async archive(id: Uuid): Promise<Estimate> {
+    // The table's check constraint also refuses an archive without a rate.
+    return this.transition(id, ["ready"], { status: "archived", archived_at: new Date().toISOString() });
+  }
+
+  async deleteEstimate(id: Uuid): Promise<string[]> {
+    const files = await this.db.from("estimate_files").select("path").eq("estimate_id", id);
+    if (files.error) fail(files.error);
+    const { data, error } = await this.db.from("estimates").delete().eq("id", id).select("id");
+    if (error) fail(error);
+    if (!data || data.length === 0) throw new RepositoryError("not_found");
+    return (files.data as { path: string }[]).map((f) => f.path);
+  }
+
+  async createUploadTarget(estimateId: Uuid, fileName: string): Promise<UploadTarget> {
+    const path = materialPath(estimateId, fileName);
+    const { data, error } = await this.db.storage.from(MATERIALS_BUCKET).createSignedUploadUrl(path);
     if (error) fail({ message: error.message });
-    return path;
+    return { path, signedUrl: data.signedUrl };
   }
 
-  async removeImages(bucket: StorageBucket, paths: string[]): Promise<void> {
-    const unique = [...new Set(paths.filter(Boolean))];
-    if (unique.length === 0) return;
-    const { error } = await this.db.storage.from(bucket).remove(unique);
+  async uploadFile(path: string, bytes: Uint8Array, contentType: string): Promise<void> {
+    const { error } = await this.db.storage.from(MATERIALS_BUCKET).upload(path, bytes, { contentType, upsert: false });
     if (error) fail({ message: error.message });
   }
 
-  async signedImageUrls(bucket: StorageBucket, paths: string[]): Promise<Record<string, string>> {
-    const unique = [...new Set(paths.filter(Boolean))];
+  async addFile(estimateId: Uuid, meta: FileMeta): Promise<EstimateFile> {
+    const { data, error } = await this.db
+      .from("estimate_files")
+      .insert({ estimate_id: estimateId, path: meta.path, name: meta.name, mime_type: meta.mimeType, size: meta.size })
+      .select("*")
+      .single();
+    if (error) fail(error);
+    return fileFromRow(data as FileDbRow);
+  }
+
+  async removeFile(fileId: Uuid): Promise<string> {
+    const { data, error } = await this.db.from("estimate_files").delete().eq("id", fileId).select("path").maybeSingle();
+    if (error) fail(error);
+    if (!data) throw new RepositoryError("not_found");
+    return (data as { path: string }).path;
+  }
+
+  async removeObjects(paths: string[]): Promise<void> {
+    if (paths.length === 0) return;
+    const { error } = await this.db.storage.from(MATERIALS_BUCKET).remove(paths);
+    if (error) fail({ message: error.message });
+  }
+
+  async signedUrls(paths: string[]): Promise<Record<string, string>> {
+    const unique = [...new Set(paths)];
     if (unique.length === 0) return {};
-    const { data, error } = await this.db.storage.from(bucket).createSignedUrls(unique, SIGNED_URL_TTL_SECONDS);
+    const { data, error } = await this.db.storage.from(MATERIALS_BUCKET).createSignedUrls(unique, SIGNED_URL_TTL_SECONDS);
     if (error) fail({ message: error.message });
     const out: Record<string, string> = {};
-    for (const item of data ?? []) {
-      if (item.path && item.signedUrl && !item.error) out[item.path] = item.signedUrl;
-    }
+    for (const item of data ?? []) if (item.path && item.signedUrl && !item.error) out[item.path] = item.signedUrl;
     return out;
   }
 }

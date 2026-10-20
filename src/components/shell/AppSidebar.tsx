@@ -3,27 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import {
-  Activity,
-  FileText,
-  LayoutGrid,
-  PanelLeftClose,
-  PanelLeftOpen,
-  UserRound,
-  Users,
-} from "lucide-react";
+import { Archive, CheckCircle2, Inbox, PanelLeftClose, PanelLeftOpen, UserRound } from "lucide-react";
 import { useSidebar } from "./SidebarProvider";
 
 const NAV = [
-  { href: "/profiles", label: "Профілі", icon: Users },
-  { href: "/status-profiles", label: "Статус профілів", icon: LayoutGrid },
-  { href: "/actions", label: "Дії", icon: Activity },
-  { href: "/contracts", label: "Контракти", icon: FileText },
+  { href: "/requests", label: "Запити", icon: Inbox },
+  { href: "/ready", label: "Готові запити", icon: CheckCircle2 },
+  { href: "/archive", label: "Архів", icon: Archive },
 ] as const;
 
 export function AppSidebar({ mockData }: { mockData: boolean }) {
   const pathname = usePathname();
-  const { collapsed, toggle } = useSidebar();
+  const { collapsed, toggle, activeSection } = useSidebar();
 
   return (
     <aside
@@ -35,8 +26,8 @@ export function AppSidebar({ mockData }: { mockData: boolean }) {
     >
       <div className={clsx("flex h-16 items-center border-b border-line", collapsed ? "justify-center" : "px-5")}>
         <Link
-          href="/profiles"
-          aria-label="Upwork Profile Manager — на головну"
+          href="/requests"
+          aria-label="Estimation Hub — на головну"
           className="rounded-sm"
         >
           {collapsed ? (
@@ -44,12 +35,12 @@ export function AppSidebar({ mockData }: { mockData: boolean }) {
               aria-hidden
               className="flex size-9 items-center justify-center rounded-md border border-line-strong font-mono text-xs font-semibold tracking-tight"
             >
-              U<span className="text-accent">/</span>P
+              E<span className="text-accent">/</span>H
             </span>
           ) : (
             <span aria-hidden className="block">
               <span className="block font-mono text-[13px] font-semibold tracking-wide whitespace-nowrap">
-                UPWORK <span className="text-accent">/</span> PROFILE MANAGER
+                CORALSOFT <span className="text-accent">/</span> ESTIMATION HUB
               </span>
               <span className="mt-0.5 block font-mono text-[11px] text-fg-muted">
                 internal workspace
@@ -62,7 +53,7 @@ export function AppSidebar({ mockData }: { mockData: boolean }) {
       <nav aria-label="Основна навігація" className="flex-1 px-2 py-4">
         <ul className="flex flex-col gap-0.5">
           {NAV.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+            const active = pathname === href || pathname.startsWith(`${href}/`) || activeSection === href;
             return (
               <li key={href}>
                 <Link

@@ -7,16 +7,20 @@ type SidebarState = {
   collapsed: boolean;
   setCollapsed: (value: boolean) => void;
   toggle: () => void;
-  /** Temporarily collapse (e.g. `Порівняння`) without touching the saved preference. */
+  /** Temporarily collapse without touching the saved preference. */
   setForcedCollapse: (value: boolean) => void;
+  /** Nav item to highlight on pages outside the section routes (an estimate's own page). */
+  activeSection: string | null;
+  setActiveSection: (href: string | null) => void;
 };
 
 const SidebarContext = createContext<SidebarState | null>(null);
-const STORAGE_KEY = "upm.sidebar.collapsed";
+const STORAGE_KEY = "eh.sidebar.collapsed";
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
   const [preference, setPreference] = useState(false);
   const [forced, setForced] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -47,8 +51,10 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
       // Expanding while forced keeps the saved preference; it only lifts the override.
       toggle: () => (forced && !preference ? setForced(false) : setCollapsed(!collapsed)),
       setForcedCollapse: setForced,
+      activeSection,
+      setActiveSection,
     }),
-    [collapsed, forced, preference, setCollapsed],
+    [collapsed, forced, preference, setCollapsed, activeSection],
   );
 
   return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;
@@ -60,12 +66,12 @@ export function useSidebar(): SidebarState {
   return ctx;
 }
 
-/** Collapses the sidebar while the calling component is mounted. */
-export function AutoCollapseSidebar() {
-  const { setForcedCollapse } = useSidebar();
+/** Highlights a nav section while the calling component is mounted. */
+export function MarkSection({ href }: { href: string }) {
+  const { setActiveSection } = useSidebar();
   useEffect(() => {
-    setForcedCollapse(true);
-    return () => setForcedCollapse(false);
-  }, [setForcedCollapse]);
+    setActiveSection(href);
+    return () => setActiveSection(null);
+  }, [href, setActiveSection]);
   return null;
 }

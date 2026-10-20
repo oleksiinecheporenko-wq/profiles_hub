@@ -9,9 +9,7 @@ import { SupabaseRepository } from "./supabase";
 export type { Repository } from "./repository";
 
 // Survives module reloads in dev, so mock edits last for the whole server session.
-const globalCache = globalThis as unknown as {
-  __upmRepository?: Promise<Repository>;
-};
+const globalCache = globalThis as unknown as { __ehRepository?: Promise<Repository> };
 
 async function createRepository(): Promise<Repository> {
   const url = process.env.SUPABASE_URL;
@@ -20,24 +18,19 @@ async function createRepository(): Promise<Repository> {
     if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required when SUPABASE_URL is set.");
     return new SupabaseRepository(url, key);
   }
-  let tx = 0;
   return new MockRepository(await buildSampleDataset(), {
     now: monotonicClock(),
     newId: () => crypto.randomUUID(),
-    nextTxId: () => ++tx,
   });
 }
 
 /** The data source: Supabase when `SUPABASE_URL` is set, otherwise the in-memory mock. */
 export function getRepository(): Promise<Repository> {
-  globalCache.__upmRepository ??= createRepository();
-  return globalCache.__upmRepository;
+  globalCache.__ehRepository ??= createRepository();
+  return globalCache.__ehRepository;
 }
 
-/**
- * For Server Components: marks the render as request-time (no prerendering at build)
- * before touching the data source.
- */
+/** For Server Components: request-time rendering (no prerendering at build). */
 export async function getRequestRepository(): Promise<Repository> {
   await connection();
   return getRepository();

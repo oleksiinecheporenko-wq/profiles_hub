@@ -46,18 +46,6 @@ export function formatDateTime(value: DateInput): string {
   return `${formatDate(value)} ${formatTime(value)}`;
 }
 
-/** Formats a DB `date` value (`yyyy-MM-dd`, no time zone) as `dd.MM.yyyy`. */
-export function formatPlainDate(value: string): string {
-  const [y, m, d] = value.slice(0, 10).split("-");
-  return `${d}.${m}.${y}`;
-}
-
-/** Today's date in Europe/Kyiv as `yyyy-MM-dd`. */
-export function todayPlainDate(): string {
-  const p = kyivParts(new Date());
-  return `${p.year}-${p.month}-${p.day}`;
-}
-
 function formatMoney(value: number): string {
   const fixed = Number.isInteger(value) ? String(value) : value.toFixed(2);
   return `$${fixed}`;
@@ -68,47 +56,23 @@ export function formatRate(value: number | null | undefined): string {
   return value == null ? "—" : `${formatMoney(value)}/год`;
 }
 
-/** Project Catalog price: `$250`. */
-export function formatPrice(value: number | null | undefined): string {
-  return value == null ? "—" : formatMoney(value);
+/** Amount in dollars with thousands separators: `$4,200`, `$37.50`. */
+export function formatCost(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return `$${value.toLocaleString("en-US", {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
-/** Initials for an avatar placeholder. */
-export function initials(fullName: string): string {
-  const words = fullName.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  const letters = words.length === 1 ? [words[0][0]] : [words[0][0], words[words.length - 1][0]];
-  return letters.join("").toLocaleUpperCase("uk");
+/** Hours without trailing zeros: `12`, `12.5`; `—` when empty. */
+export function formatHours(value: number | null | undefined): string {
+  return value == null ? "—" : String(Math.round(value * 100) / 100);
 }
 
-function kyivOffsetMinutes(at: Date): number {
-  const name =
-    new Intl.DateTimeFormat("en-US", { timeZone: DISPLAY_TIME_ZONE, timeZoneName: "longOffset" })
-      .formatToParts(at)
-      .find((p) => p.type === "timeZoneName")?.value ?? "GMT";
-  const m = /GMT([+-])(\d{2}):?(\d{2})?/.exec(name);
-  if (!m) return 0;
-  return (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] ?? 0));
-}
-
-/** UTC instant of 00:00 in Europe/Kyiv on the given `yyyy-MM-dd` day. */
-export function kyivDayStart(plainDate: string): Date {
-  const [y, m, d] = plainDate.split("-").map(Number);
-  const utcMidnight = Date.UTC(y, m - 1, d);
-  let start = utcMidnight - kyivOffsetMinutes(new Date(utcMidnight)) * 60_000;
-  // Re-check across a DST switch.
-  start = utcMidnight - kyivOffsetMinutes(new Date(start)) * 60_000;
-  return new Date(start);
-}
-
-/** `yyyy-MM-dd` shifted by whole days. */
-export function addDays(plainDate: string, days: number): string {
-  const [y, m, d] = plainDate.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
-
-/** Kyiv calendar day (`yyyy-MM-dd`) of a timestamp. */
-export function kyivPlainDate(value: DateInput): string {
-  const p = kyivParts(value);
-  return `${p.year}-${p.month}-${p.day}`;
+/** File size: `830 КБ`, `12.4 МБ`. */
+export function formatFileSize(bytes: number | null | undefined): string {
+  if (bytes == null) return "";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }

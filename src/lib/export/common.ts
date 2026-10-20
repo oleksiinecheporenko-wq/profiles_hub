@@ -1,26 +1,16 @@
-// Shared bits of the contract exports (Part A, section 7 `Export`).
+// Shared bits of the client PDF: fonts, file name and the plain data model.
 
-import { readFileSync } from "node:fs";
 import path from "node:path";
-import { CONTRACT_STATUS_LABELS } from "@/lib/domain/enums";
-import type { ContractDetail } from "@/lib/domain/types";
-import { formatDate, formatDateTime, formatPlainDate, formatRate } from "@/lib/format";
+import { computeTable, costs, type Estimate, type Hours } from "@/lib/domain/estimate";
 
-export const WORDMARK = "UPWORK / PROFILE MANAGER";
+export const WORDMARK = "CORALSOFT";
 export const FONT_FAMILY = "Roboto";
 
-const FONT_DIR = path.join(process.cwd(), "src", "assets", "fonts");
+/** Absolute paths for `Font.register`; static segments so the files get traced. */
 export const FONT_FILES = {
-  regular: path.join(FONT_DIR, "Roboto-Regular.ttf"),
-  bold: path.join(FONT_DIR, "Roboto-Bold.ttf"),
+  regular: path.join(process.cwd(), "src", "assets", "fonts", "Roboto-Regular.ttf"),
+  bold: path.join(process.cwd(), "src", "assets", "fonts", "Roboto-Bold.ttf"),
 };
-
-/** Static paths, so the bundler can trace the font files. */
-export function readFont(weight: keyof typeof FONT_FILES): Buffer {
-  return weight === "bold"
-    ? readFileSync(path.join(process.cwd(), "src", "assets", "fonts", "Roboto-Bold.ttf"))
-    : readFileSync(path.join(process.cwd(), "src", "assets", "fonts", "Roboto-Regular.ttf"));
-}
 
 // Ukrainian national transliteration (simplified: position rules for є/ї/й/ю/я at word start ignored).
 const TRANSLIT: Record<string, string> = {
@@ -34,44 +24,79 @@ export function slugify(text: string, max = 60): string {
   const latin = [...text.toLocaleLowerCase("uk")].map((c) => TRANSLIT[c] ?? c).join("");
   const slug = latin
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, max)
     .replace(/-+$/g, "");
-  return slug || "contract";
+  return slug || "estimate";
 }
 
-/** `contract-<title-slug>-<yyyy-mm-dd>.<ext>` (date = contract creation date). */
-export function contractFileName(contract: Pick<ContractDetail, "title" | "createdDate">, ext: "docx" | "pdf"): string {
-  return `contract-${slugify(contract.title)}-${contract.createdDate}.${ext}`;
+/** `estimate-<client>-<project>-<yyyy-mm-dd>.pdf` (date = ready date, else creation). */
+export function estimateFileName(e: Pick<Estimate, "clientName" | "projectName" | "createdAt" | "readyAt">): string {
+  const name = slugify([e.clientName, e.projectName].filter(Boolean).join(" "));
+  return `estimate-${name}-${(e.readyAt ?? e.createdAt).slice(0, 10)}.pdf`;
 }
 
-export type ExportModel = {
-  title: string;
-  meta: { label: string; value: string }[];
-  sections: { heading: string; body: string | null }[];
-  comments: { when: string; body: string }[];
+const pdfDate = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Kyiv", day: "numeric", month: "long", year: "numeric" }).format(
+    new Date(iso),
+  );
+
+export const formatHoursEn = (h: number | null) => (h === null ? "—" : String(Math.round(h * 100) / 100));
+
+export function formatUsd(value: number | null): string {
+  if (value === null) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+export type PdfLine =
+  | { kind: "phase"; feature: string; subtotal: Hours }
+  | { kind: "task"; feature: string; notes: string; optimistic: number | null; pessimistic: number | null; realistic: number | null };
+
+export type PdfModel = {
+  client: string;
+  project: string | null;
+  jobTitle: string | null;
+  date: string;
+  lines: PdfLine[];
+  total: Hours;
+  rate: number | null;
+  cost: Hours | null;
 };
 
-/** Plain data for both renderers, so Word and PDF show the same content. */
-export function exportModel(c: ContractDetail): ExportModel {
-  const meta = [
-    { label: "Статус", value: CONTRACT_STATUS_LABELS[c.status] },
-    { label: "Профіль", value: c.profile.fullName },
-    ...(c.profile.profileUrl ? [{ label: "Посилання на профіль", value: c.profile.profileUrl }] : []),
-    { label: "Дата створення", value: formatPlainDate(c.createdDate) },
-    ...(c.closedAt ? [{ label: "Дата закриття", value: formatDate(c.closedAt) }] : []),
-    { label: "Рейт", value: c.rate === null ? "—" : formatRate(c.rate) },
-  ];
+/** Rows with no feature and no hours are blank placeholders and are left out. */
+export function pdfModel(e: Estimate): PdfModel {
+  const { lines, total } = computeTable(e.rows);
+  const out: PdfLine[] = [];
+  for (const line of lines) {
+    if (line.row.kind === "phase") {
+      if ("subtotal" in line && line.row.feature.trim()) out.push({ kind: "phase", feature: line.row.feature, subtotal: line.subtotal });
+    } else if ("optimistic" in line && (line.row.feature.trim() || line.row.realistic !== null)) {
+      out.push({
+        kind: "task",
+        feature: line.row.feature,
+        notes: line.row.notes,
+        optimistic: line.optimistic,
+        pessimistic: line.pessimistic,
+        realistic: line.row.realistic,
+      });
+    }
+  }
   return {
-    title: c.title,
-    meta,
-    sections: [
-      { heading: "Опис", body: c.description },
-      { heading: "Діалог", body: c.dialog },
-    ],
-    comments: c.comments.map((m) => ({ when: formatDateTime(m.createdAt), body: m.body })),
+    client: e.clientName,
+    project: e.projectName,
+    jobTitle: e.jobTitle,
+    date: pdfDate(e.readyAt ?? e.createdAt),
+    lines: out,
+    total,
+    rate: e.rate,
+    cost: costs(total, e.rate),
   };
 }

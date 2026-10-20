@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDateTime, formatPlainDate, formatPrice, formatRate, initials } from "./format";
+import { formatCost, formatDate, formatDateTime, formatFileSize, formatHours, formatRate } from "./format";
 
 describe("format", () => {
   it("shows UTC timestamps in Europe/Kyiv", () => {
@@ -10,30 +10,15 @@ describe("format", () => {
     expect(formatDate(new Date("2026-09-29T08:00:00Z"))).toBe("29.09.2026");
   });
 
-  it("formats plain DB dates without shifting the day", () => {
-    expect(formatPlainDate("2026-08-12")).toBe("12.08.2026");
-  });
-
-  it("formats rate and price", () => {
+  it("formats rate, cost, hours and sizes", () => {
     expect(formatRate(40)).toBe("$40/год");
     expect(formatRate(37.5)).toBe("$37.50/год");
     expect(formatRate(null)).toBe("—");
-    expect(formatPrice(250)).toBe("$250");
-  });
-
-  it("builds initials", () => {
-    expect(initials("Іван Петренко")).toBe("ІП");
-    expect(initials("  олена  ")).toBe("О");
-    expect(initials("")).toBe("?");
-  });
-});
-
-describe("Kyiv day boundaries", () => {
-  it("finds midnight in Kyiv in summer and winter time", async () => {
-    const { kyivDayStart, addDays, kyivPlainDate } = await import("./format");
-    expect(kyivDayStart("2026-09-29").toISOString()).toBe("2026-09-28T21:00:00.000Z");
-    expect(kyivDayStart("2026-01-15").toISOString()).toBe("2026-01-14T22:00:00.000Z");
-    expect(addDays("2026-03-01", -1)).toBe("2026-02-28");
-    expect(kyivPlainDate("2026-09-28T21:30:00Z")).toBe("2026-09-29");
+    expect(formatCost(4200)).toBe("$4,200");
+    expect(formatCost(37.5)).toBe("$37.50");
+    expect(formatHours(12.5)).toBe("12.5");
+    expect(formatHours(null)).toBe("—");
+    expect(formatFileSize(2048)).toBe("2 КБ");
+    expect(formatFileSize(5 * 1024 * 1024)).toBe("5.0 МБ");
   });
 });

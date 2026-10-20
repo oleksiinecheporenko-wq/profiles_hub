@@ -1,6 +1,13 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
+    { "name": "dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 },
+    {
+      "name": "dev-mock",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3001"],
+      "port": 3001,
+      "env": { "SUPABASE_URL": "", "SUPABASE_SERVICE_ROLE_KEY": "", "APP_ACCESS_PASSWORD": "", "APP_COOKIE_SECRET": "" }
+    }
   ]
 }

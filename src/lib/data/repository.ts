@@ -1,126 +1,71 @@
-// Data access contract. Components and server actions depend on this interface only;
-// `supabaseRepository` and `mockRepository` implement it.
-//
-// Inputs are expected to be validated with the zod schemas in `src/lib/validation`.
-// Failures are thrown as `RepositoryError` (see `src/lib/domain/errors.ts`).
+// Data access contract. Pages and server actions depend on this interface only;
+// `SupabaseRepository` and `MockRepository` implement it. Inputs are validated with
+// the zod schemas in `src/lib/validation/estimate.ts` before they get here.
 
-import type { ContractStatus, ProfileStatus } from "@/lib/domain/enums";
-import type { DailyChangeInput } from "@/lib/domain/dailyChanges";
-import type { VersionPayload } from "@/lib/domain/versions";
 import type {
-  ActivityEntry,
-  Contract,
-  ContractComment,
-  ContractDetail,
-  ContractListItem,
-  DailyChange,
-  Profile,
-  ProfileLanguage,
-  ProfileOverview,
-  ProfileVersion,
-  Timestamp,
+  Estimate,
+  EstimateFile,
+  EstimateRow,
+  EstimateStatus,
+  EstimateWithFiles,
   Uuid,
-  VersionSummary,
-} from "@/lib/domain/types";
-import type { ContractInput } from "@/lib/validation/contract";
-import type { CreateProfileInput, LanguageInput, ProfileFieldsPatch } from "@/lib/validation/profile";
+} from "@/lib/domain/estimate";
+import type { CreateEstimateInput, EstimateInfoPatch, FileMeta } from "@/lib/validation/estimate";
 
-export type ProfileDetail = {
-  profile: ProfileOverview;
-  languages: ProfileLanguage[];
+export const MATERIALS_BUCKET = "estimate-materials";
+
+export type EstimateQuery = {
+  status: EstimateStatus;
+  /** Search over client, project, job title and developer. */
+  q?: string;
 };
 
-export type ActivityCursor = { occurredAt: Timestamp; txId: number };
-
-export type ActivityQuery = {
-  profileId?: Uuid;
-  /** Only entries whose action is one of these. */
-  actions?: string[];
-  /** Inclusive lower bound. */
-  from?: Timestamp;
-  /** Exclusive upper bound. */
-  to?: Timestamp;
-  /** Entries strictly older than this cursor. */
-  before?: ActivityCursor;
-  limit: number;
-};
-
-export type ActivityPage = {
-  entries: ActivityEntry[];
-  nextCursor: ActivityCursor | null;
-};
-
-/** What a permanent deletion left in storage, for the caller to clean up. */
-export type DeletedProfile = {
-  fullName: string;
-  photoPath: string | null;
-  portfolioImages: string[];
-};
-
-export type ContractQuery = {
-  profileId?: Uuid;
-};
-
-export type StorageBucket = "profile-photos" | "portfolio-images";
-
-export type ImageUpload = {
-  bytes: Uint8Array;
-  contentType: "image/jpeg" | "image/png" | "image/webp";
-};
+/** Where the browser sends a file: a signed URL, or null to upload through the server. */
+export type UploadTarget = { path: string; signedUrl: string | null };
 
 export interface Repository {
   readonly kind: "supabase" | "mock";
 
-  // Profiles
-  listProfiles(): Promise<ProfileOverview[]>;
-  getProfile(id: Uuid): Promise<ProfileDetail | null>;
-  createProfile(input: CreateProfileInput): Promise<Profile>;
-  updateProfileFields(id: Uuid, patch: ProfileFieldsPatch): Promise<Profile>;
-  setProfileLanguages(id: Uuid, languages: LanguageInput[]): Promise<ProfileLanguage[]>;
-  /** No-op (returns the profile unchanged) when the status is the same. */
-  changeProfileStatus(id: Uuid, status: ProfileStatus, reason: string | null): Promise<Profile>;
-  /** Permanent: also removes versions, daily changes, languages, contracts, comments. */
-  deleteProfile(id: Uuid): Promise<DeletedProfile>;
+  /** Newest first (archive: by archive date). */
+  listEstimates(query: EstimateQuery): Promise<Estimate[]>;
+  countByStatus(): Promise<Record<EstimateStatus, number>>;
+  getEstimate(id: Uuid): Promise<EstimateWithFiles | null>;
+  createEstimate(input: CreateEstimateInput): Promise<Estimate>;
+  /** Text fields; allowed while the estimate is in progress or ready. */
+  updateInfo(id: Uuid, patch: EstimateInfoPatch): Promise<Estimate>;
+  /** Table rows; only while in progress. */
+  updateRows(id: Uuid, rows: EstimateRow[]): Promise<Estimate>;
+  /** in_progress → ready, stamps ready_at. */
+  markReady(id: Uuid): Promise<Estimate>;
+  /** ready → in_progress, clears ready_at. */
+  reopen(id: Uuid): Promise<Estimate>;
+  /** Only while ready. */
+  setRate(id: Uuid, rate: number | null): Promise<Estimate>;
+  /** ready (with a rate) → archived. */
+  archive(id: Uuid): Promise<Estimate>;
+  /** Permanent; returns the storage paths of its files for cleanup. */
+  deleteEstimate(id: Uuid): Promise<string[]>;
 
-  // Versions
-  /** Rail order: `update_date desc, created_at desc`. */
-  listVersions(profileId: Uuid): Promise<VersionSummary[]>;
-  getVersion(versionId: Uuid): Promise<ProfileVersion | null>;
-  getCurrentVersion(profileId: Uuid): Promise<ProfileVersion | null>;
-  /** Only for the current version; throws `conflict` if `expectedUpdatedAt` is stale. */
-  applyDailyChange(
-    versionId: Uuid,
-    change: DailyChangeInput,
-    expectedUpdatedAt: Timestamp,
-  ): Promise<ProfileVersion>;
-  createGlobalVersion(profileId: Uuid, payload: VersionPayload): Promise<ProfileVersion>;
-  editGlobalVersion(
-    versionId: Uuid,
-    payload: VersionPayload,
-    expectedUpdatedAt: Timestamp,
-  ): Promise<ProfileVersion>;
-  /** Newest first. */
-  listDailyChanges(versionId: Uuid): Promise<DailyChange[]>;
-  /** Every skill ever saved in any version (autocomplete), alphabetical. */
-  listSkillSuggestions(): Promise<string[]>;
+  // Materials
+  createUploadTarget(estimateId: Uuid, fileName: string): Promise<UploadTarget>;
+  /** Server-side upload (mock mode, small files). */
+  uploadFile(path: string, bytes: Uint8Array, contentType: string): Promise<void>;
+  addFile(estimateId: Uuid, meta: FileMeta): Promise<EstimateFile>;
+  /** Returns the removed file's storage path. */
+  removeFile(fileId: Uuid): Promise<string>;
+  removeObjects(paths: string[]): Promise<void>;
+  /** Signed download URLs (1 hour) keyed by path. */
+  signedUrls(paths: string[]): Promise<Record<string, string>>;
+}
 
-  // Activity
-  listActivity(query: ActivityQuery): Promise<ActivityPage>;
-
-  // Contracts (soft-deleted contracts are never returned)
-  listContracts(query?: ContractQuery): Promise<ContractListItem[]>;
-  getContract(id: Uuid): Promise<ContractDetail | null>;
-  createContract(input: ContractInput): Promise<Contract>;
-  updateContract(id: Uuid, input: ContractInput, expectedUpdatedAt?: Timestamp): Promise<Contract>;
-  setContractStatus(id: Uuid, status: ContractStatus): Promise<Contract>;
-  softDeleteContract(id: Uuid): Promise<void>;
-  addContractComment(contractId: Uuid, body: string): Promise<ContractComment>;
-
-  // Storage
-  /** Stores the image under a random name and returns its path in the bucket. */
-  uploadImage(bucket: StorageBucket, upload: ImageUpload): Promise<string>;
-  /** Removes stored files; missing paths are ignored. */
-  removeImages(bucket: StorageBucket, paths: string[]): Promise<void>;
-  /** Signed URLs valid for one hour, keyed by path. Unknown paths are omitted. */
-  signedImageUrls(bucket: StorageBucket, paths: string[]): Promise<Record<string, string>>;
+/** Storage path for a new file: `<estimate>/<random>-<safe name>`. */
+export function materialPath(estimateId: Uuid, fileName: string): string {
+  const safe =
+    fileName
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(-80) || "file";
+  return `${estimateId}/${crypto.randomUUID()}-${safe}`;
 }
