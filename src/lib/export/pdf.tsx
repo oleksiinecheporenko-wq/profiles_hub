@@ -124,8 +124,9 @@ const s = StyleSheet.create({
 
   note: { fontSize: 8, color: C.muted, lineHeight: 1.5, marginTop: 18 },
 
-  steps: { marginTop: 30, flexDirection: "row", gap: 10 },
-  step: { flex: 1, borderTopWidth: 0.75, borderTopColor: C.line, paddingTop: 12 },
+  steps: { marginTop: 30, flexDirection: "row", flexWrap: "wrap", columnGap: 10, rowGap: 16 },
+  // Three per row; more steps wrap onto the next row.
+  step: { width: (W - 2 * PAD_X - 20) / 3, borderTopWidth: 0.75, borderTopColor: C.line, paddingTop: 12 },
   stepNum: { ...label, color: C.coral, fontSize: 7.5 },
   stepTitle: { fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, marginTop: 8 },
   stepText: { fontSize: 8.5, color: C.text2, lineHeight: 1.45, marginTop: 3 },
@@ -234,12 +235,6 @@ function Line({ line }: { line: PdfLine }) {
   );
 }
 
-const NEXT_STEPS = [
-  { title: "Discovery call", text: "We align on scope, priorities and open questions." },
-  { title: "Proposal", text: "Milestones, team and timeline, fixed in writing." },
-  { title: "Kick-off", text: "Onboarding, environments and the first sprint." },
-];
-
 function EstimatePdf({ estimate }: { estimate: Estimate }) {
   const m = pdfModel(estimate);
   const cost = (k: keyof Hours) => (m.cost ? m.cost[k] : null);
@@ -333,11 +328,11 @@ function EstimatePdf({ estimate }: { estimate: Estimate }) {
             <Text style={[label, { color: C.coral, fontSize: 6.5 }]}>HOW WE START</Text>
           </View>
           <View style={[s.steps, { marginTop: 4 }]}>
-            {NEXT_STEPS.map((step, i) => (
-              <View key={step.title} style={s.step}>
+            {m.nextSteps.map((step, i) => (
+              <View key={step.id} style={s.step}>
                 <Text style={s.stepNum}>{String(i + 1).padStart(2, "0")}</Text>
                 <Text style={s.stepTitle}>{step.title}</Text>
-                <Text style={s.stepText}>{step.text}</Text>
+                {step.text !== "" && <Text style={s.stepText}>{step.text}</Text>}
               </View>
             ))}
           </View>

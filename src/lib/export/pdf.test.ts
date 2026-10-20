@@ -12,6 +12,9 @@ describe("estimate pdf", () => {
     expect(m.total.realistic).toBe(114);
     expect(m.cost?.realistic).toBe(114 * 35);
     expect(m.date).toBe("1 October 2026");
+    expect(m.nextSteps.map((st) => st.title)).toEqual(["Discovery call", "Proposal", "Kick-off"]);
+    const own = pdfModel({ ...shop, nextSteps: [{ id: "a", title: "Workshop", text: "Two hours" }] });
+    expect(own.nextSteps).toEqual([{ id: "a", title: "Workshop", text: "Two hours" }]);
   });
 
   it("names the file after client, project and date", () => {

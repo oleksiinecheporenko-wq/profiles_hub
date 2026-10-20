@@ -32,6 +32,9 @@ export type EstimateRow = {
 
 export type EstimateLink = { id: Uuid; url: string; label: string | null };
 
+/** A `Next steps` item of the client PDF. */
+export type NextStep = { id: Uuid; title: string; text: string };
+
 export type EstimateFile = {
   id: Uuid;
   estimateId: Uuid;
@@ -54,6 +57,8 @@ export type Estimate = {
   additionalInfo: string | null;
   links: EstimateLink[];
   rows: EstimateRow[];
+  /** Custom `Next steps`; null means the standard ones. */
+  nextSteps: NextStep[] | null;
   createdAt: Timestamp;
   readyAt: Timestamp | null;
   archivedAt: Timestamp | null;
@@ -61,6 +66,21 @@ export type Estimate = {
 };
 
 export type EstimateWithFiles = Estimate & { files: EstimateFile[] };
+
+// ---- next steps -------------------------------------------------------------
+
+/** Used whenever an estimate has no custom steps (or an empty list). */
+export const DEFAULT_NEXT_STEPS: NextStep[] = [
+  { id: "default-1", title: "Discovery call", text: "We align on scope, priorities and open questions." },
+  { id: "default-2", title: "Proposal", text: "Milestones, team and timeline, fixed in writing." },
+  { id: "default-3", title: "Kick-off", text: "Onboarding, environments and the first sprint." },
+];
+
+/** Steps that go into the PDF: the custom ones with a title, else the defaults. */
+export function effectiveNextSteps(steps: NextStep[] | null): NextStep[] {
+  const filled = (steps ?? []).filter((s) => s.title.trim() !== "");
+  return filled.length > 0 ? filled : DEFAULT_NEXT_STEPS;
+}
 
 // ---- rows -----------------------------------------------------------------
 

@@ -10,6 +10,7 @@ import {
   createEstimateSchema,
   estimateInfoPatchSchema,
   fileMetaSchema,
+  nextStepsSchema,
   rateSchema,
   rowsSchema,
   uuid,
@@ -106,6 +107,21 @@ export async function setRateAction(id: string, rate: number | null): Promise<Ac
   try {
     await (await getRepository()).setRate(eid.data, parsed.data);
     revalidate(eid.data);
+    return ok(undefined);
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** `Next steps` of the PDF; an empty list goes back to the standard steps. */
+export async function setNextStepsAction(id: string, steps: unknown): Promise<ActionResult> {
+  const eid = uuid.safeParse(id);
+  if (!eid.success) return invalid(eid.error);
+  const parsed = nextStepsSchema.safeParse(steps);
+  if (!parsed.success) return invalid(parsed.error);
+  try {
+    await (await getRepository()).setNextSteps(eid.data, parsed.data);
+    revalidate();
     return ok(undefined);
   } catch (error) {
     return failure(error);

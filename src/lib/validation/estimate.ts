@@ -73,6 +73,21 @@ export const rowsSchema = z
   .max(500, { message: "Забагато рядків." })
   .refine((rows) => new Set(rows.map((r) => r.id)).size === rows.length, { message: "Рядки мають повторювані id." });
 
+export const nextStepsSchema = z
+  .array(
+    z.object({
+      id: z.string().min(1).max(64),
+      title: z.string().trim().max(80, { message: "Назва кроку: не більше 80 символів." }),
+      text: z.string().trim().max(240, { message: "Опис кроку: не більше 240 символів." }),
+    }),
+  )
+  .max(6, { message: "Не більше 6 кроків." })
+  // Steps without a title are dropped; an empty list means the standard steps.
+  .transform((steps) => {
+    const kept = steps.filter((s) => s.title !== "");
+    return kept.length > 0 ? kept : null;
+  });
+
 export const fileMetaSchema = z.object({
   path: z.string().min(1).max(500),
   name: requiredText(300, "Немає назви файлу."),

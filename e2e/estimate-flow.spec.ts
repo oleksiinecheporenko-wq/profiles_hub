@@ -54,6 +54,17 @@ test("request → ready → archive, with the PDF", async ({ page }) => {
   await expect(total).toContainText("$160");
   await expect(total).toContainText("$640");
 
+  // Next steps: standard ones until edited; edits are saved and survive a reload.
+  await expect(page.getByText("Стандартні кроки: додаються в PDF автоматично.")).toBeVisible();
+  await page.getByLabel("Крок 1: назва").fill("Technical workshop");
+  await expect(page.getByText("Власні кроки для PDF клієнта.")).toBeVisible();
+  await expect(page.getByRole("tabpanel", { name: "Оцінка" }).getByText("Збережено")).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Крок 1: назва")).toHaveValue("Technical workshop");
+  await page.getByRole("button", { name: "Стандартні кроки" }).click();
+  await expect(page.getByLabel("Крок 1: назва")).toHaveValue("Discovery call");
+  await page.getByLabel("Крок 2: назва").fill("Prototype");
+
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "PDF" }).click()]);
   expect(download.suggestedFilename()).toMatch(/^estimate-e2e-kliient-e2e-proiekt-\d{4}-\d{2}-\d{2}\.pdf$/);
 

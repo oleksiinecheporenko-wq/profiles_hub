@@ -8,6 +8,7 @@ import type {
   EstimateRow,
   EstimateStatus,
   EstimateWithFiles,
+  NextStep,
   Uuid,
 } from "@/lib/domain/estimate";
 import type { CreateEstimateInput, EstimateInfoPatch, FileMeta } from "@/lib/validation/estimate";
@@ -41,6 +42,8 @@ export interface Repository {
   reopen(id: Uuid): Promise<Estimate>;
   /** Only while ready. */
   setRate(id: Uuid, rate: number | null): Promise<Estimate>;
+  /** Only while ready; null restores the standard steps. */
+  setNextSteps(id: Uuid, steps: NextStep[] | null): Promise<Estimate>;
   /** ready (with a rate) → archived. */
   archive(id: Uuid): Promise<Estimate>;
   /** Permanent; returns the storage paths of its files for cleanup. */

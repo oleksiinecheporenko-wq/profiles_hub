@@ -9,6 +9,7 @@ import {
   type EstimateRow,
   type EstimateStatus,
   type EstimateWithFiles,
+  type NextStep,
   type Timestamp,
   type Uuid,
 } from "@/lib/domain/estimate";
@@ -114,6 +115,7 @@ export class MockRepository implements Repository {
       additionalInfo: null,
       links: [],
       rows: defaultRows(this.opts.newId),
+      nextSteps: null,
       createdAt: now,
       readyAt: null,
       archivedAt: null,
@@ -145,6 +147,10 @@ export class MockRepository implements Repository {
 
   async setRate(id: Uuid, rate: number | null): Promise<Estimate> {
     return this.write(id, ["ready"], () => ({ rate }));
+  }
+
+  async setNextSteps(id: Uuid, nextSteps: NextStep[] | null): Promise<Estimate> {
+    return this.write(id, ["ready"], () => ({ nextSteps }));
   }
 
   async archive(id: Uuid): Promise<Estimate> {

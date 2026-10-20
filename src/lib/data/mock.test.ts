@@ -37,10 +37,14 @@ describe("estimate lifecycle", () => {
     expect(reopened).toMatchObject({ status: "in_progress", readyAt: null });
     await repo.markReady(e.id);
 
+    await expect(repo.setNextSteps(e.id, [{ id: "s1", title: "Call", text: "" }])).resolves.toMatchObject({
+      nextSteps: [{ title: "Call" }],
+    });
     await expect(repo.archive(e.id)).rejects.toMatchObject({ code: "invalid" });
     await repo.setRate(e.id, 40);
     const archived = await repo.archive(e.id);
     expect(archived.status).toBe("archived");
+    await expect(repo.setNextSteps(e.id, null)).rejects.toMatchObject({ code: "wrong_status" });
     await expect(repo.setRate(e.id, 50)).rejects.toMatchObject({ code: "wrong_status" });
     await expect(repo.updateInfo(e.id, { jobTitle: "x" })).rejects.toMatchObject({ code: "wrong_status" });
   });

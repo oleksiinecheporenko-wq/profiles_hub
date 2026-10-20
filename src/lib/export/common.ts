@@ -1,7 +1,7 @@
 // Shared bits of the client PDF: fonts, file name and the plain data model.
 
 import path from "node:path";
-import { computeTable, costs, type Estimate, type Hours } from "@/lib/domain/estimate";
+import { computeTable, costs, effectiveNextSteps, type Estimate, type Hours, type NextStep } from "@/lib/domain/estimate";
 
 export const WORDMARK = "CORALSOFT";
 /** Absolute paths for `Font.register` and `<Image>`; static segments so the files get traced. */
@@ -73,6 +73,7 @@ export type PdfModel = {
   total: Hours;
   rate: number | null;
   cost: Hours | null;
+  nextSteps: NextStep[];
 };
 
 /** Rows with no feature and no hours are blank placeholders and are left out. */
@@ -104,5 +105,6 @@ export function pdfModel(e: Estimate): PdfModel {
     total,
     rate: e.rate,
     cost: costs(total, e.rate),
+    nextSteps: effectiveNextSteps(e.nextSteps),
   };
 }

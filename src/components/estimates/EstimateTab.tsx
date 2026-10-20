@@ -16,11 +16,12 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { computeTable, costs, newRow, type Estimate, type EstimateRow } from "@/lib/domain/estimate";
 import { formatCost, formatHours, formatRate } from "@/lib/format";
+import { NextStepsEditor } from "./NextStepsEditor";
 import { SaveIndicator } from "./SaveIndicator";
 import { useAutosave } from "./useAutosave";
 
 type Props = {
-  estimate: Pick<Estimate, "id" | "status" | "developer" | "rows" | "rate">;
+  estimate: Pick<Estimate, "id" | "status" | "developer" | "rows" | "rate" | "nextSteps">;
 };
 
 /** Accepts `12`, `12.5`, `12,5`; empty means no estimate yet. Undefined = not a valid number. */
@@ -395,6 +396,8 @@ export function EstimateTab({ estimate }: Props) {
           </Button>
         </div>
       )}
+
+      {!editable && <NextStepsEditor estimateId={id} steps={estimate.nextSteps} editable={status === "ready"} />}
     </div>
   );
 }

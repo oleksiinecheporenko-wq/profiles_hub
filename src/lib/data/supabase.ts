@@ -12,6 +12,7 @@ import {
   type EstimateRow,
   type EstimateStatus,
   type EstimateWithFiles,
+  type NextStep,
   type Uuid,
 } from "@/lib/domain/estimate";
 import { RepositoryError, type RepositoryErrorCode } from "@/lib/domain/errors";
@@ -47,6 +48,7 @@ type EstimateDbRow = {
   additional_info: string | null;
   links: Estimate["links"] | null;
   rows: EstimateRow[] | null;
+  next_steps: NextStep[] | null;
   created_at: string;
   ready_at: string | null;
   archived_at: string | null;
@@ -78,6 +80,7 @@ function estimateFromRow(r: EstimateDbRow): Estimate {
     additionalInfo: r.additional_info,
     links: r.links ?? [],
     rows: (r.rows ?? []).map((row) => ({ ...row, realistic: row.realistic === null ? null : Number(row.realistic) })),
+    nextSteps: r.next_steps ?? null,
     createdAt: r.created_at,
     readyAt: r.ready_at,
     archivedAt: r.archived_at,
@@ -208,6 +211,10 @@ export class SupabaseRepository implements Repository {
 
   async setRate(id: Uuid, rate: number | null): Promise<Estimate> {
     return this.transition(id, ["ready"], { rate });
+  }
+
+  async setNextSteps(id: Uuid, steps: NextStep[] | null): Promise<Estimate> {
+    return this.transition(id, ["ready"], { next_steps: steps });
   }
 
   async archive(id: Uuid): Promise<Estimate> {
