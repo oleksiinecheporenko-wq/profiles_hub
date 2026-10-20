@@ -4,12 +4,14 @@ import path from "node:path";
 import { computeTable, costs, type Estimate, type Hours } from "@/lib/domain/estimate";
 
 export const WORDMARK = "CORALSOFT";
-export const FONT_FAMILY = "Roboto";
-
-/** Absolute paths for `Font.register`; static segments so the files get traced. */
-export const FONT_FILES = {
-  regular: path.join(process.cwd(), "src", "assets", "fonts", "Roboto-Regular.ttf"),
-  bold: path.join(process.cwd(), "src", "assets", "fonts", "Roboto-Bold.ttf"),
+/** Absolute paths for `Font.register` and `<Image>`; static segments so the files get traced. */
+export const ASSETS = {
+  onestRegular: path.join(process.cwd(), "src", "assets", "fonts", "Onest-Regular.ttf"),
+  onestMedium: path.join(process.cwd(), "src", "assets", "fonts", "Onest-Medium.ttf"),
+  onestSemiBold: path.join(process.cwd(), "src", "assets", "fonts", "Onest-SemiBold.ttf"),
+  monoRegular: path.join(process.cwd(), "src", "assets", "fonts", "JetBrainsMono-Regular.ttf"),
+  monoMedium: path.join(process.cwd(), "src", "assets", "fonts", "JetBrainsMono-Medium.ttf"),
+  logo: path.join(process.cwd(), "src", "assets", "brand", "coralsoft-logo.png"),
 };
 
 // Ukrainian national transliteration (simplified: position rules for є/ї/й/ю/я at word start ignored).
@@ -57,7 +59,7 @@ export function formatUsd(value: number | null): string {
 }
 
 export type PdfLine =
-  | { kind: "phase"; feature: string; subtotal: Hours }
+  | { kind: "phase"; number: number; feature: string; subtotal: Hours }
   | { kind: "task"; feature: string; notes: string; optimistic: number | null; pessimistic: number | null; realistic: number | null };
 
 export type PdfModel = {
@@ -66,6 +68,8 @@ export type PdfModel = {
   jobTitle: string | null;
   date: string;
   lines: PdfLine[];
+  /** Task rows in the report. */
+  featureCount: number;
   total: Hours;
   rate: number | null;
   cost: Hours | null;
@@ -75,9 +79,10 @@ export type PdfModel = {
 export function pdfModel(e: Estimate): PdfModel {
   const { lines, total } = computeTable(e.rows);
   const out: PdfLine[] = [];
+  let phases = 0;
   for (const line of lines) {
     if (line.row.kind === "phase") {
-      if ("subtotal" in line && line.row.feature.trim()) out.push({ kind: "phase", feature: line.row.feature, subtotal: line.subtotal });
+      if ("subtotal" in line && line.row.feature.trim()) out.push({ kind: "phase", number: ++phases, feature: line.row.feature, subtotal: line.subtotal });
     } else if ("optimistic" in line && (line.row.feature.trim() || line.row.realistic !== null)) {
       out.push({
         kind: "task",
@@ -95,6 +100,7 @@ export function pdfModel(e: Estimate): PdfModel {
     jobTitle: e.jobTitle,
     date: pdfDate(e.readyAt ?? e.createdAt),
     lines: out,
+    featureCount: out.filter((l) => l.kind === "task").length,
     total,
     rate: e.rate,
     cost: costs(total, e.rate),

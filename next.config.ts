@@ -9,9 +9,9 @@ const nextConfig: NextConfig = {
   },
   // The PDF renderer loads fonts and native-ish deps at runtime; keep it out of the bundle.
   serverExternalPackages: ["@react-pdf/renderer"],
-  // Font files are read from disk by the PDF route; make sure they ship with it.
+  // Font and logo files are read from disk by the PDF route; make sure they ship with it.
   outputFileTracingIncludes: {
-    "/api/estimates/*/pdf": ["./src/assets/fonts/**/*"],
+    "/api/estimates/*/pdf": ["./src/assets/fonts/**/*", "./src/assets/brand/**/*"],
   },
 };
 

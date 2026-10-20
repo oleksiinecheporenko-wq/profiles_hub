@@ -1,8 +1,9 @@
 # Fonts
 
-`Roboto-Regular.ttf`, `Roboto-Bold.ttf` — Roboto by Christian Robertson (Google),
-Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0).
+Used by the client PDF (`src/lib/export/pdf.tsx`). Both families cover Latin and Cyrillic.
 
-Converted from the WOFF files of the `roboto-fontface` npm package with
-`scripts/woff-to-ttf.mjs`. Used by the Word and PDF contract exports, which need
-a font with Cyrillic glyphs.
+- `Onest-Regular|Medium|SemiBold.ttf` — Onest by the Onest Project Authors, SIL Open Font License 1.1 (`OFL-Onest.txt`).
+- `JetBrainsMono-Regular|Medium.ttf` — JetBrains Mono by JetBrains, SIL Open Font License 1.1 (`OFL-JetBrainsMono.txt`).
+
+Built from the `@fontsource/onest` and `@fontsource/jetbrains-mono` WOFF subsets
+(latin, latin-ext, cyrillic, cyrillic-ext) merged into one TTF per weight with fontTools.
