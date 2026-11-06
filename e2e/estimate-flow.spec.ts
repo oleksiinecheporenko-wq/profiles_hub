@@ -45,8 +45,16 @@ test("request → ready → archive, with the PDF", async ({ page }) => {
   await page.getByLabel("Feature").first().fill("Login");
   await page.getByLabel("Realistic, год: Login").fill("10");
   const login = table.locator("tbody tr").nth(1);
-  await expect(login.locator("td").nth(2)).toHaveText("4");
-  await expect(login.locator("td").nth(3)).toHaveText("16");
+  // Auto: 10 ÷ 1.5 → 6.5 and 10 × 2 → 20, shown as placeholders.
+  const optimistic = page.getByLabel("Optimistic, год: Login");
+  const pessimistic = page.getByLabel("Pessimistic, год: Login");
+  await expect(optimistic).toHaveAttribute("placeholder", "6.5");
+  await expect(pessimistic).toHaveAttribute("placeholder", "20");
+  // Manual value wins; clearing it goes back to auto.
+  await pessimistic.fill("30");
+  await pessimistic.fill("");
+  await optimistic.fill("7");
+  await expect(login).toBeVisible();
 
   await page.getByRole("button", { name: "Add a Row" }).click();
   await expect(table.locator("tbody tr")).toHaveCount(12);
@@ -59,9 +67,12 @@ test("request → ready → archive, with the PDF", async ({ page }) => {
   const total = table.locator("tfoot tr");
   await expect(total).toContainText("Total");
   await page.getByLabel("Рейт, $ за годину").fill("40");
+  // Optimistic 7 (manual), Pessimistic 20 (auto), Realistic 10 at $40/h.
   await expect(total).toContainText("$400");
-  await expect(total).toContainText("$160");
-  await expect(total).toContainText("$640");
+  await expect(total).toContainText("$280");
+  await expect(total).toContainText("$800");
+  await expect(table.locator("tbody tr").nth(1).locator("td").nth(2)).toHaveText("7");
+  await expect(table.locator("tbody tr").nth(1).locator("td").nth(3)).toHaveText("20");
 
   // Next steps: standard ones until edited; edits are saved and survive a reload.
   await expect(page.getByText("Стандартні кроки: додаються в PDF автоматично.")).toBeVisible();

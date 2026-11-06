@@ -84,7 +84,7 @@ export function pdfModel(e: Estimate): PdfModel {
   for (const line of lines) {
     if (line.row.kind === "phase") {
       if ("subtotal" in line && line.row.feature.trim()) out.push({ kind: "phase", number: ++phases, feature: line.row.feature, subtotal: line.subtotal });
-    } else if ("optimistic" in line && (line.row.feature.trim() || line.row.realistic !== null)) {
+    } else if ("optimistic" in line && (line.row.feature.trim() || line.row.realistic !== null || line.optimistic !== null || line.pessimistic !== null)) {
       out.push({
         kind: "task",
         feature: line.row.feature,

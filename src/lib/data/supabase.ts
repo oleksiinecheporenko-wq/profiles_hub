@@ -66,6 +66,8 @@ type FileDbRow = {
 };
 
 const num = (v: number | string | null) => (v === null ? null : Number(v));
+/** Rows saved before manual Optimistic/Pessimistic existed have no such keys. */
+const optionalHours = (v: number | string | null | undefined) => (v === null || v === undefined ? null : Number(v));
 
 function estimateFromRow(r: EstimateDbRow): Estimate {
   return {
@@ -79,7 +81,12 @@ function estimateFromRow(r: EstimateDbRow): Estimate {
     jobDescription: r.job_description,
     additionalInfo: r.additional_info,
     links: r.links ?? [],
-    rows: (r.rows ?? []).map((row) => ({ ...row, realistic: row.realistic === null ? null : Number(row.realistic) })),
+    rows: (r.rows ?? []).map((row) => ({
+      ...row,
+      realistic: optionalHours(row.realistic),
+      optimistic: optionalHours(row.optimistic),
+      pessimistic: optionalHours(row.pessimistic),
+    })),
     nextSteps: r.next_steps ?? null,
     createdAt: r.created_at,
     readyAt: r.ready_at,

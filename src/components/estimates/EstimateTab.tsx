@@ -14,7 +14,7 @@ import {
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { computeTable, costs, newRow, type Estimate, type EstimateRow } from "@/lib/domain/estimate";
+import { computeTable, costs, newRow, optimisticOf, pessimisticOf, type Estimate, type EstimateRow } from "@/lib/domain/estimate";
 import { formatCost, formatHours, formatRate } from "@/lib/format";
 import { NextStepsEditor } from "./NextStepsEditor";
 import { SaveIndicator } from "./SaveIndicator";
@@ -32,12 +32,23 @@ function parseHours(text: string): number | null | undefined {
   return Number(t);
 }
 
-const isBlank = (r: EstimateRow) => !r.feature.trim() && !r.notes.trim() && r.realistic === null;
+const isBlank = (r: EstimateRow) =>
+  !r.feature.trim() && !r.notes.trim() && r.realistic === null && r.optimistic == null && r.pessimistic == null;
 
 const cellInput =
   "w-full bg-transparent px-3 py-2.5 text-sm text-fg placeholder:text-fg-muted/70 focus:bg-surface-2 focus:outline-none focus-visible:outline-none";
 
-function HoursInput({ value, onChange, label }: { value: number | null; onChange: (v: number | null) => void; label: string }) {
+type HoursInputProps = {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  label: string;
+  /** Shown while empty, e.g. the value derived from Realistic. */
+  placeholder?: string;
+  title?: string;
+  className?: string;
+};
+
+function HoursInput({ value, onChange, label, placeholder = "0", title, className }: HoursInputProps) {
   const [text, setText] = useState(value === null ? "" : String(value));
   const invalid = parseHours(text) === undefined;
   return (
@@ -46,7 +57,8 @@ function HoursInput({ value, onChange, label }: { value: number | null; onChange
       aria-label={label}
       aria-invalid={invalid || undefined}
       value={text}
-      placeholder="0"
+      placeholder={placeholder}
+      title={title}
       onChange={(e) => {
         setText(e.target.value);
         const parsed = parseHours(e.target.value);
@@ -58,6 +70,7 @@ function HoursInput({ value, onChange, label }: { value: number | null; onChange
       className={clsx(
         cellInput,
         "text-right font-mono font-semibold",
+        className,
         invalid && "text-negative",
       )}
     />
@@ -266,8 +279,12 @@ export function EstimateTab({ estimate }: Props) {
             <tr className="border-b border-line bg-surface-2 text-left text-[13px] text-fg-2">
               <th scope="col" className="px-3 py-2.5 font-semibold">Feature</th>
               <th scope="col" className="px-3 py-2.5 font-semibold">Notes</th>
-              <th scope="col" className="px-3 py-2.5 text-right font-semibold">Optimistic (h)</th>
-              <th scope="col" className="px-3 py-2.5 text-right font-semibold">Pessimistic (h)</th>
+              <th scope="col" className="px-3 py-2.5 text-right font-semibold" title="Авто: Realistic ÷ 1.5">
+                Optimistic (h)
+              </th>
+              <th scope="col" className="px-3 py-2.5 text-right font-semibold" title="Авто: Realistic × 2">
+                Pessimistic (h)
+              </th>
               <th scope="col" className="px-3 py-2.5 text-right font-semibold text-fg">Realistic (h)</th>
               {editable && <th scope="col"><span className="sr-only">Дії</span></th>}
             </tr>
@@ -343,12 +360,27 @@ export function EstimateTab({ estimate }: Props) {
                       <p className="px-3 py-2.5 whitespace-pre-wrap text-fg-2">{row.notes}</p>
                     )}
                   </td>
-                  <td className="border-r border-line px-3 py-2.5 text-right font-mono text-fg-2">
-                    {row.realistic === null ? "" : formatHours(line.optimistic)}
-                  </td>
-                  <td className="border-r border-line px-3 py-2.5 text-right font-mono text-fg-2">
-                    {row.realistic === null ? "" : formatHours(line.pessimistic)}
-                  </td>
+                  {(["optimistic", "pessimistic"] as const).map((k) => {
+                    const auto = k === "optimistic" ? optimisticOf(row.realistic) : pessimisticOf(row.realistic);
+                    const name = k === "optimistic" ? "Optimistic" : "Pessimistic";
+                    return editable ? (
+                      <td key={k} className="border-r border-line p-0">
+                        <HoursInput
+                          label={`${name}, год${row.feature ? `: ${row.feature}` : ""}`}
+                          value={row[k] ?? null}
+                          // Empty = derived from Realistic; the derived value shows as the placeholder.
+                          placeholder={auto === null ? "" : formatHours(auto)}
+                          title={`Порожнє — авто (${k === "optimistic" ? "Realistic ÷ 1.5" : "Realistic × 2"}). Введіть число, щоб задати вручну.`}
+                          onChange={(v) => patchRow(row.id, { [k]: v })}
+                          className="font-normal text-fg-2 placeholder:text-fg-muted/60"
+                        />
+                      </td>
+                    ) : (
+                      <td key={k} className="border-r border-line px-3 py-2.5 text-right font-mono text-fg-2">
+                        {line[k] === null ? "" : formatHours(line[k])}
+                      </td>
+                    );
+                  })}
                   <td className={clsx("p-0", editable && "border-r border-line")}>
                     {editable ? (
                       <HoursInput
@@ -416,6 +448,13 @@ export function EstimateTab({ estimate }: Props) {
           )}
         </table>
       </div>
+
+      {editable && (
+        <p className="-mt-1 text-[13px] text-fg-muted">
+          Optimistic і Pessimistic рахуються автоматично: Realistic ÷ 1.5 і Realistic × 2 (округлення до 0.5 год). Сіре
+          число — авто; введіть своє, щоб задати вручну, або очистіть поле, щоб повернути авто.
+        </p>
+      )}
 
       {editable && (
         <div className="flex gap-2">

@@ -28,6 +28,10 @@ export type EstimateRow = {
   notes: string;
   /** Realistic hours; only task rows have them. */
   realistic: number | null;
+  /** Manual Optimistic hours; null or absent = derived from Realistic. */
+  optimistic?: number | null;
+  /** Manual Pessimistic hours; null or absent = derived from Realistic. */
+  pessimistic?: number | null;
 };
 
 export type EstimateLink = { id: Uuid; url: string; label: string | null };
@@ -84,21 +88,34 @@ export function effectiveNextSteps(steps: NextStep[] | null): NextStep[] {
 
 // ---- rows -----------------------------------------------------------------
 
-/** Optimistic is always 6 h below Realistic, Pessimistic 6 h above. */
-export const SPREAD_HOURS = 6;
+/** By default Optimistic = Realistic ÷ 1.5 and Pessimistic = Realistic × 2. */
+export const OPTIMISTIC_DIVISOR = 1.5;
+export const PESSIMISTIC_FACTOR = 2;
+
+/** Derived hours are rounded to the nearest half hour. */
+const toHalfHour = (n: number) => Math.round(n * 2) / 2;
 
 export function optimisticOf(realistic: number | null): number | null {
-  return realistic === null ? null : Math.max(0, realistic - SPREAD_HOURS);
+  return realistic === null ? null : toHalfHour(realistic / OPTIMISTIC_DIVISOR);
 }
 
 export function pessimisticOf(realistic: number | null): number | null {
-  return realistic === null ? null : realistic + SPREAD_HOURS;
+  return realistic === null ? null : toHalfHour(realistic * PESSIMISTIC_FACTOR);
+}
+
+/** Hours a row shows: the manual value when set, else the one derived from Realistic. */
+export function rowHours(row: EstimateRow): { optimistic: number | null; pessimistic: number | null; realistic: number | null } {
+  return {
+    optimistic: row.optimistic ?? optimisticOf(row.realistic),
+    pessimistic: row.pessimistic ?? pessimisticOf(row.realistic),
+    realistic: row.realistic,
+  };
 }
 
 export const DEFAULT_ROW_COUNT = 11;
 
 export function newRow(kind: EstimateRow["kind"], id: Uuid): EstimateRow {
-  return { id, kind, feature: "", notes: "", realistic: null };
+  return { id, kind, feature: "", notes: "", realistic: null, optimistic: null, pessimistic: null };
 }
 
 /** A new estimate starts with 11 rows: one `Phase` heading and ten task rows. */
@@ -129,14 +146,13 @@ export function computeTable(rows: EstimateRow[]): { lines: TableLine[]; total: 
       lines.push({ row: row as EstimateRow & { kind: "phase" }, subtotal: phase });
       continue;
     }
-    const o = optimisticOf(row.realistic);
-    const p = pessimisticOf(row.realistic);
-    lines.push({ row: row as EstimateRow & { kind: "task" }, optimistic: o, pessimistic: p });
-    if (row.realistic === null) continue;
+    const h = rowHours(row);
+    lines.push({ row: row as EstimateRow & { kind: "task" }, optimistic: h.optimistic, pessimistic: h.pessimistic });
+    // Each column sums on its own: a manual value counts even without Realistic.
     for (const target of phase ? [phase, total] : [total]) {
-      target.optimistic += o!;
-      target.realistic += row.realistic;
-      target.pessimistic += p!;
+      target.optimistic += h.optimistic ?? 0;
+      target.realistic += h.realistic ?? 0;
+      target.pessimistic += h.pessimistic ?? 0;
     }
   }
 

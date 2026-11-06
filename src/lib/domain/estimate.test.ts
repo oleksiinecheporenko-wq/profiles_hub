@@ -7,6 +7,7 @@ import {
   hasEstimatedTasks,
   optimisticOf,
   pessimisticOf,
+  rowHours,
   type EstimateRow,
 } from "./estimate";
 
@@ -16,12 +17,23 @@ const task = (feature: string, realistic: number | null): EstimateRow => ({ id: 
 const phase = (feature: string): EstimateRow => ({ id: id(), kind: "phase", feature, notes: "", realistic: null });
 
 describe("estimate arithmetic", () => {
-  it("derives optimistic and pessimistic per row, never below zero", () => {
-    expect(optimisticOf(20)).toBe(14);
-    expect(pessimisticOf(20)).toBe(26);
-    expect(optimisticOf(2)).toBe(0);
-    expect(pessimisticOf(2)).toBe(8);
+  it("derives optimistic (÷ 1.5) and pessimistic (× 2), to the half hour", () => {
+    expect(optimisticOf(30)).toBe(20);
+    expect(pessimisticOf(30)).toBe(60);
+    expect(optimisticOf(10)).toBe(6.5); // 6.67
+    expect(optimisticOf(8)).toBe(5.5); // 5.33
+    expect(pessimisticOf(2.5)).toBe(5);
+    expect(optimisticOf(0)).toBe(0);
     expect(optimisticOf(null)).toBeNull();
+  });
+
+  it("uses manual optimistic and pessimistic when set", () => {
+    const row = { ...task("API", 10), optimistic: 8, pessimistic: null };
+    expect(rowHours(row)).toEqual({ optimistic: 8, pessimistic: 20, realistic: 10 });
+    // Rows saved before overrides existed have no such keys.
+    expect(rowHours(task("Old", 30))).toEqual({ optimistic: 20, pessimistic: 60, realistic: 30 });
+    const { total } = computeTable([phase("P"), row, task("UI", 3), { ...task("Risk", null), pessimistic: 4 }]);
+    expect(total).toEqual({ optimistic: 10, realistic: 13, pessimistic: 30 });
   });
 
   it("starts with one phase and ten task rows", () => {
@@ -36,9 +48,10 @@ describe("estimate arithmetic", () => {
     const { lines, total } = computeTable(rows);
     const design = lines[0];
     const dev = lines[4];
-    expect("subtotal" in design && design.subtotal).toEqual({ optimistic: 4, realistic: 14, pessimistic: 26 });
-    expect("subtotal" in dev && dev.subtotal).toEqual({ optimistic: 14, realistic: 20, pessimistic: 26 });
-    expect(total).toEqual({ optimistic: 18, realistic: 34, pessimistic: 52 });
+    // Wireframes 10 → 6.5 / 20, UI 4 → 2.5 / 8, API 20 → 13.5 / 40.
+    expect("subtotal" in design && design.subtotal).toEqual({ optimistic: 9, realistic: 14, pessimistic: 28 });
+    expect("subtotal" in dev && dev.subtotal).toEqual({ optimistic: 13.5, realistic: 20, pessimistic: 40 });
+    expect(total).toEqual({ optimistic: 22.5, realistic: 34, pessimistic: 68 });
   });
 
   it("counts tasks before the first phase in the total", () => {

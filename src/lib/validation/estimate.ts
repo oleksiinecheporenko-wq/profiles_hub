@@ -64,9 +64,17 @@ export const rowSchema = z
     feature: z.string().max(500, { message: "Feature: не більше 500 символів." }),
     notes: z.string().max(5000, { message: "Notes: не більше 5000 символів." }),
     realistic: hoursSchema.nullable(),
+    // Manual overrides; null = derived from Realistic.
+    optimistic: hoursSchema.nullable().optional(),
+    pessimistic: hoursSchema.nullable().optional(),
   })
   // A phase is a heading: it never carries hours.
-  .transform((r) => (r.kind === "phase" ? { ...r, realistic: null } : r));
+  .transform((r) => ({
+    ...r,
+    realistic: r.kind === "phase" ? null : r.realistic,
+    optimistic: r.kind === "phase" ? null : (r.optimistic ?? null),
+    pessimistic: r.kind === "phase" ? null : (r.pessimistic ?? null),
+  }));
 
 export const rowsSchema = z
   .array(rowSchema)
